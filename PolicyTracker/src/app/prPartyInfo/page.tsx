@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import PRSidebar from "../components/PRSidebar";
+import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { firestore } from "@/app/lib/firebase";
 
 interface PartyInfo {
   party_des: string;
@@ -11,7 +14,7 @@ interface PartyInfo {
 }
 
 interface Member {
-  id: number;
+  id: string;
   name: string;
   surname: string;
   role: string;
@@ -22,154 +25,113 @@ export default function PRPartyInfo() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [partyInfo, setPartyInfo] = useState<PartyInfo | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
+  const [partyName, setPartyName] = useState<string | null>(null);
   const router = useRouter();
-  const partyName = "ตัวอย่างพรรค"; // ควรเปลี่ยนให้ดึงจาก API
 
-  // ดึงข้อมูลพรรคและสมาชิก (จำลอง API)
   useEffect(() => {
-    setPartyInfo({
-      party_des: "พรรคนี้เน้นนโยบายเพื่อประชาชน",
-      party_link: "https://www.example.com",
-      party_logo: "/path/to/logo.jpg",
-    });
-
-    setMembers([
-      { id: 1, name: "สมชาย", surname: "ใจดี", role: "หัวหน้าพรรค", image: "/path/to/member1.jpg" },
-      { id: 2, name: "สมหญิง", surname: "ใจดี", role: "รองหัวหน้าพรรค", image: "/path/to/member2.jpg" },
-    ]);
+    const storedParty = localStorage.getItem("partyName");
+    const cleanedParty = storedParty?.replace(/^\u0e1e\u0e23\u0e23\u0e04\s*/g, "").trim() || null;
+    setPartyName(cleanedParty);
   }, []);
 
-  const goToPartyInfoForm = () => {
-    router.push("/pr_party_info_form");
+  useEffect(() => {
+    if (!partyName) return;
+
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`/api/pr-partyinfo/${encodeURIComponent(partyName)}`);
+        const data = await res.json();
+
+        const logoUrl = `https://firebasestorage.googleapis.com/v0/b/policy-tracker-kp.firebasestorage.app/o/party%2Flogo%2F${encodeURIComponent(partyName)}.png?alt=media`;
+
+        setPartyInfo({
+          party_des: data.description ?? "-",
+          party_link: data.link ?? "-",
+          party_logo: logoUrl,
+        });
+
+        const memberSnapshot = await getDocs(collection(firestore, "Party", partyName, "Member"));
+
+        const memberData = await Promise.all(
+          memberSnapshot.docs.map(async (docSnap) => {
+            const member = docSnap.data();
+            const firstName: string = member.FirstName || "ไม่ระบุชื่อ";
+            const lastName: string = member.LastName || "ไม่ระบุนามสกุล";
+
+            const nameParts = firstName.trim().split(" ");
+            let fullName = nameParts.length > 1 ? `${nameParts[0]}_${nameParts.slice(1).join("_")}_${lastName}` : `${firstName}_${lastName}`;
+
+            const basePath = `party/member/${partyName}/${fullName}`;
+            let pictureUrl = "/default-profile.png";
+
+            try {
+              const jpg = await fetch(`https://firebasestorage.googleapis.com/v0/b/policy-tracker-kp.firebasestorage.app/o/${encodeURIComponent(basePath)}.jpg?alt=media`);
+              if (jpg.ok) pictureUrl = jpg.url;
+              else {
+                const png = await fetch(`https://firebasestorage.googleapis.com/v0/b/policy-tracker-kp.firebasestorage.app/o/${encodeURIComponent(basePath)}.png?alt=media`);
+                if (png.ok) pictureUrl = png.url;
+              }
+            } catch {}
+
+            return {
+              id: docSnap.id,
+              name: member.FirstName,
+              surname: member.LastName,
+              role: member.Role,
+              image: pictureUrl,
+            };
+          })
+        );
+
+        setMembers(memberData);
+      } catch (error) {
+        console.error("Error fetching party info:", error);
+      }
+    };
+
+    fetchData();
+  }, [partyName]);
+
+  const goToPartyInfoForm = () => router.push("/prPartyInfoForm");
+  const goToMemberForm = () => router.push("/prMemberForm");
+
+  const deleteMember = async (id: string) => {
+    if (!partyName || !confirm("คุณต้องการลบสมาชิกคนนี้หรือไม่?")) return;
+    try {
+      await deleteDoc(doc(firestore, "Party", partyName, "Member", id));
+      setMembers((prev) => prev.filter((m) => m.id !== id));
+    } catch (err) {
+      console.error("Error deleting member:", err);
+    }
   };
 
-  const deleteParty = () => {
-    if (!confirm("คุณต้องการลบข้อมูลพรรคหรือไม่?")) return;
-    setPartyInfo(null);
-    alert("✅ ลบข้อมูลพรรคสำเร็จ");
-  };
-
-  const goToMemberForm = () => {
-    router.push("/pr_member_form");
-  };
+  if (!partyName) {
+    return <div className="text-center text-white py-10">กำลังโหลดข้อมูลพรรค...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-[#9795B5] flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-200 p-6 fixed h-full hidden md:block">
-        <ul className="space-y-4">
-          <li>
-            <Link href="/pr_policy" className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md hover:bg-[#D0CEF0]">
-              นโยบาย
-            </Link>
-          </li>
-          <li>
-            <Link href="/pr_campaign" className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md hover:bg-[#D0CEF0]">
-              โครงการ
-            </Link>
-          </li>
-          <li>
-            <Link href="/pr_event" className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md hover:bg-[#D0CEF0]">
-              กิจกรรม
-            </Link>
-          </li>
-          <li>
-            <Link href="/pr_party_info" className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md hover:bg-[#D0CEF0]">
-              ข้อมูลพรรค
-            </Link>
-          </li>
-        </ul>
-      </aside>
-
+      <PRSidebar />
       <div className="flex-1 md:ml-64">
-        {/* Navbar */}
         <header className="bg-white p-4 shadow-md flex justify-between items-center sticky top-0 z-10">
           <h1 className="text-2xl font-bold text-[#5D5A88]">PR พรรค {partyName}</h1>
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden text-3xl text-[#5D5A88] focus:outline-none"
-          >
-            ☰
-          </button>
-          <ul className="hidden md:flex space-x-4">
-            <li>
-              <Link href="/login" className="text-[#5D5A88] px-4 py-2 hover:bg-gray-200 rounded-md">
-                ออกจากระบบ
-              </Link>
-            </li>
-          </ul>
+          <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-3xl text-[#5D5A88]">☰</button>
         </header>
 
-        {/* Mobile Sidebar */}
-        {menuOpen && (
-          <div className="md:hidden bg-gray-100 p-4 absolute top-16 left-0 w-full shadow-md">
-            <ul className="space-y-2">
-              <li>
-                <Link href="/pr_policy" className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200">
-                  นโยบาย
-                </Link>
-              </li>
-              <li>
-                <Link href="/pr_campaign" className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200">
-                  โครงการ
-                </Link>
-              </li>
-              <li>
-                <Link href="/pr_event" className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200">
-                  กิจกรรม
-                </Link>
-              </li>
-              <li>
-                <Link href="/pr_party_info" className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200">
-                  ข้อมูลพรรค
-                </Link>
-              </li>
-              <li>
-                <Link href="/login" className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200">
-                  ออกจากระบบ
-                </Link>
-              </li>
-            </ul>
-          </div>
-        )}
-
-        {/* Main Content */}
         <main className="p-6">
           <div className="flex justify-end mb-4">
             <button onClick={goToPartyInfoForm} className="bg-[#5D5A88] text-white px-4 py-2 rounded-md hover:bg-[#46426b]">
-              ➕ เพิ่มข้อมูลพรรค
+              ✏ แก้ไขข้อมูลพรรค
             </button>
           </div>
 
           <h2 className="text-3xl text-white text-center">ข้อมูลพรรค</h2>
-          <br />
-
-          {partyInfo ? (
-            <div className="bg-white p-6 rounded-lg shadow-lg">
+          {partyInfo && (
+            <div className="bg-white p-6 rounded-lg shadow-lg mt-4">
               <p><strong>รายละเอียด:</strong> {partyInfo.party_des}</p>
-              <p>
-                <strong>เว็บไซต์:</strong>{" "}
-                <a href={partyInfo.party_link} target="_blank" className="text-blue-600 underline">
-                  {partyInfo.party_link}
-                </a>
-              </p>
-              {partyInfo.party_logo && (
-                <div>
-                  <p><strong>โลโก้พรรค:</strong></p>
-                  <img src={partyInfo.party_logo} width="150" alt="Party Logo" className="rounded-md shadow-md" />
-                </div>
-              )}
-              <div className="flex gap-4 mt-4">
-                <button onClick={goToPartyInfoForm} className="bg-[#5D5A88] text-white px-3 py-1 rounded-md hover:bg-[#46426b]">
-                  ✏ แก้ไขข้อมูลพรรค
-                </button>
-                <button onClick={deleteParty} className="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-700">
-                  ❌ ลบข้อมูลพรรค
-                </button>
-              </div>
+              <p><strong>เว็บไซต์:</strong> <a href={partyInfo.party_link} target="_blank" className="text-blue-600 underline">{partyInfo.party_link}</a></p>
+              <img src={partyInfo.party_logo} alt="โลโก้พรรค" className="mt-4 h-32 rounded shadow-md" />
             </div>
-          ) : (
-            <p className="text-white text-center">ยังไม่มีข้อมูลพรรคในระบบ</p>
           )}
 
           <div className="flex justify-end mt-6">
@@ -185,6 +147,9 @@ export default function PRPartyInfo() {
                 <img src={member.image} alt={member.name} className="w-24 h-24 mx-auto rounded-full shadow-md" />
                 <p className="mt-2 font-semibold">{member.name} {member.surname}</p>
                 <p className="text-gray-600">{member.role}</p>
+                <button onClick={() => deleteMember(member.id)} className="mt-2 bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-700">
+                  ❌ ลบ
+                </button>
               </div>
             ))}
           </div>

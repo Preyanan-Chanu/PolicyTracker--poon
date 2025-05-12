@@ -2,7 +2,9 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-
+import PRSidebar from "../components/PRSidebar";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/app/lib/firebase";
 
 export default function PRPartyInfoForm() {
   const router = useRouter();
@@ -14,7 +16,6 @@ export default function PRPartyInfoForm() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [existingLogoUrl, setExistingLogoUrl] = useState("");
 
-  // โหลดรายชื่อพรรคจาก Neo4j
   useEffect(() => {
     const fetchPartyList = async () => {
       try {
@@ -22,6 +23,10 @@ export default function PRPartyInfoForm() {
         const data = await res.json();
         const names = data.map((p: any) => p.name);
         setPartyList(names);
+
+        const stored = localStorage.getItem("partyName") ?? "";
+        const cleanName = stored.replace(/^\u0E1E\u0E23\u0E23\u0E04\s*/, "").trim();
+        setPartyName(cleanName);
       } catch (err) {
         console.error("Error fetching party list:", err);
       }
@@ -29,7 +34,6 @@ export default function PRPartyInfoForm() {
     fetchPartyList();
   }, []);
 
-  // ดึงข้อมูลพรรคเมื่อเลือกจาก dropdown
   useEffect(() => {
     if (!partyName) return;
 
@@ -40,9 +44,10 @@ export default function PRPartyInfoForm() {
           const data = await res.json();
           setDescription(data.description || "");
           setLink(data.link || "");
-          setExistingLogoUrl(data.logo || "");
+          setExistingLogoUrl(
+            `https://firebasestorage.googleapis.com/v0/b/policy-tracker-kp.firebasestorage.app/o/party%2Flogo%2F${encodeURIComponent(partyName)}.png?alt=media`
+          );
         } else {
-          // ถ้าไม่มีข้อมูลพรรคนี้ ให้เคลียร์ค่า
           setDescription("");
           setLink("");
           setExistingLogoUrl("");
@@ -55,20 +60,24 @@ export default function PRPartyInfoForm() {
     fetchPartyInfo();
   }, [partyName]);
 
-  // บันทึก
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     let logoUrl = existingLogoUrl;
-    
-    const payload = {
-      name: partyName,
-      description,
-      link,
-      logo: logoUrl,
-    };
-
     try {
+      if (logoFile) {
+        const logoRef = ref(storage, `party/logo/${partyName}.png`);
+        await uploadBytes(logoRef, logoFile);
+        logoUrl = `https://firebasestorage.googleapis.com/v0/b/policy-tracker-kp.firebasestorage.app/o/party%2Flogo%2F${encodeURIComponent(partyName)}.png?alt=media`;
+      }
+
+      const payload = {
+        name: partyName,
+        description,
+        link,
+        logo: logoUrl,
+      };
+
       const res = await fetch(`/api/party/${encodeURIComponent(partyName)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -88,45 +97,22 @@ export default function PRPartyInfoForm() {
 
   return (
     <div className="min-h-screen bg-[#9795B5] flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-200 p-6 fixed h-full hidden md:block">
-        <ul className="space-y-4">
-          <li><Link href="/pr_policy" className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md">นโยบาย</Link></li>
-          <li><Link href="/pr_campaign" className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md">โครงการ</Link></li>
-          <li><Link href="/pr_event" className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md">กิจกรรม</Link></li>
-          <li><Link href="/pr_party_info" className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md">ข้อมูลพรรค</Link></li>
-        </ul>
-      </aside>
-
+      <PRSidebar />
       <div className="flex-1 md:ml-64">
-        {/* Header */}
         <header className="bg-white p-4 shadow-md flex justify-between items-center sticky top-0 z-10">
           <h1 className="text-2xl font-bold text-[#5D5A88]">จัดการข้อมูลพรรค</h1>
           <Link href="/login" className="text-[#5D5A88]">ออกจากระบบ</Link>
         </header>
 
-        {/* Form */}
         <h1 className="text-3xl text-white mt-6 mb-4 text-center">ฟอร์มข้อมูลพรรค</h1>
         <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-lg max-w-xl mx-auto">
           <div className="mb-4">
-            <label className="block text-[#5D5A88] font-semibold mb-1">เลือกพรรค (หรือตั้งชื่อใหม่)</label>
-            <select
-              className="w-full border border-gray-300 rounded-md px-4 py-2 mb-2"
-              value={partyName}
-              onChange={(e) => setPartyName(e.target.value)}
-            >
-              <option value="">-- เลือกพรรค --</option>
-              {partyList.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
+            <label className="block text-[#5D5A88] font-semibold mb-1">ชื่อพรรค</label>
             <input
               type="text"
-              placeholder="หรือพิมพ์ชื่อพรรคใหม่"
               value={partyName}
-              onChange={(e) => setPartyName(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-4 py-2"
-              required
+              readOnly
+              className="w-full border border-gray-300 rounded-md px-4 py-2 bg-gray-100"
             />
           </div>
 

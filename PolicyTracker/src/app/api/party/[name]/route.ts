@@ -2,7 +2,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import driver from '@/app/lib/neo4j';
 
-export async function GET(_: NextRequest, { params }: { params: { name: string } }) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { name: string } }
+) {
+  const name = decodeURIComponent(params.name); // ✅ ปลอดภัยและไม่มี warning
+
+
+
   const session = driver.session();
   try {
     const result = await session.run(
@@ -12,7 +19,7 @@ export async function GET(_: NextRequest, { params }: { params: { name: string }
         .name, .description, .link, .logo
       } AS party
       `,
-      { name: decodeURIComponent(params.name) }
+      { name }
     );
 
     if (result.records.length === 0) {

@@ -1,51 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import Sidebar from "@/app/components/PRSidebar";
 
 export default function PRPage() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const partyName = "ตัวอย่างพรรค"; // สามารถเปลี่ยนค่าเป็น dynamic จาก database ได้
+  const [partyName, setPartyName] = useState<string | null>(null);
+
+  // โหลด partyName จาก localStorage หลัง login
+  useEffect(() => {
+    const storedParty = localStorage.getItem("partyName");
+    setPartyName(storedParty ?? "ไม่ทราบชื่อพรรค");
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#9795B5] flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-200 p-6 fixed h-full hidden md:block">
-        <ul className="space-y-4">
-          <li>
-            <Link
-              href="/pr_policy"
-              className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md hover:bg-[#D0CEF0]"
-            >
-              นโยบาย
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/pr_campaign"
-              className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md hover:bg-[#D0CEF0]"
-            >
-              โครงการ
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/pr_event"
-              className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md hover:bg-[#D0CEF0]"
-            >
-              กิจกรรม
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/pr_party_info"
-              className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md hover:bg-[#D0CEF0]"
-            >
-              ข้อมูลพรรค
-            </Link>
-          </li>
-        </ul>
-      </aside>
+      <Sidebar />
 
       <div className="flex-1 md:ml-64">
         {/* Navbar */}
@@ -72,52 +43,7 @@ export default function PRPage() {
         </header>
 
         {/* Mobile Sidebar */}
-        {menuOpen && (
-          <div className="md:hidden bg-gray-100 p-4 absolute top-16 left-0 w-full shadow-md">
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  href="/pr_policy"
-                  className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200"
-                >
-                  นโยบาย
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/pr_campaign"
-                  className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200"
-                >
-                  โครงการ
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/pr_event"
-                  className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200"
-                >
-                  กิจกรรม
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/pr_party_info"
-                  className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200"
-                >
-                  ข้อมูลพรรค
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/login"
-                  className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200"
-                >
-                  ออกจากระบบ
-                </Link>
-              </li>
-            </ul>
-          </div>
-        )}
+        {menuOpen && <Sidebar isMobile onClose={() => setMenuOpen(false)} />}
 
         {/* Main Content */}
         <main className="p-6">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import PRSidebar from "../components/PRSidebar";
 
 interface Event {
   id: number;
@@ -17,74 +18,77 @@ interface Event {
 export default function PRActivitiesPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
-  const partyName = "ตัวอย่างพรรค"; // ควรเปลี่ยนให้ดึงจาก API
+  const [partyName, setPartyName] = useState<string | null>(null);
   const router = useRouter();
 
-  // ดึงข้อมูลกิจกรรม (จำลอง API)
+  // โหลดชื่อพรรคจาก localStorage
   useEffect(() => {
-    setEvents([
-      {
-        id: 1,
-        event_name: "กิจกรรม A",
-        event_des: "รายละเอียดกิจกรรม A",
-        event_status: "กำลังดำเนินการ",
-        event_date: "2025-03-10",
-        event_time: "10:00",
-        event_location: "กรุงเทพฯ",
-      },
-      {
-        id: 2,
-        event_name: "กิจกรรม B",
-        event_des: "รายละเอียดกิจกรรม B",
-        event_status: "เสร็จสิ้น",
-        event_date: "2025-02-28",
-        event_time: "14:30",
-        event_location: "เชียงใหม่",
-      },
-    ]);
+    const storedParty = localStorage.getItem("partyName") ?? "";
+    const cleanName = storedParty.trim();
+    setPartyName(cleanName);
   }, []);
+  
+
+  // ดึงข้อมูลกิจกรรมจาก API
+  useEffect(() => {
+    if (!partyName) return;
+
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch("/api/pr-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ partyName }),
+        });
+        const data = await res.json();
+        console.log("✅ Events data from API:", data);
+        setEvents(data);
+      } catch (error) {
+        console.error("Failed to fetch events", error);
+      }
+    };
+
+    fetchEvents();
+  }, [partyName]);
 
   const goToEventForm = () => {
-    router.push("/pr_event_form");
+    router.push("/prEventForm");
   };
 
   const editEvent = (id: number) => {
-    router.push(`/pr_event_form?event_id=${id}`);
+    router.push(`/prEventForm?event_id=${id}`);
   };
 
-  const deleteEvent = (id: number) => {
-    if (!confirm("คุณต้องการลบกิจกรรมนี้หรือไม่?")) return;
-    setEvents((prev) => prev.filter((event) => event.id !== id));
-    alert("✅ ลบกิจกรรมสำเร็จ");
+  const deleteEvent = async (id: number) => {
+    const confirmDelete = confirm("คุณแน่ใจว่าต้องการลบกิจกรรมนี้?");
+    if (!confirmDelete) return;
+  
+    try {
+      const res = await fetch(`/api/pr-event/${id}`, {
+        method: "DELETE",
+      });
+  
+      if (res.ok) {
+        alert("✅ ลบกิจกรรมสำเร็จ");
+        setEvents((prev) => prev.filter((event) => event.id !== id));
+      } else {
+        const text = await res.text();
+        alert("❌ ลบไม่สำเร็จ: " + text);
+      }
+    } catch (err) {
+      console.error("❌ Delete failed:", err);
+      alert("เกิดข้อผิดพลาดระหว่างลบ");
+    }
   };
+  
+
+  if (!partyName) {
+    return <div className="text-center text-white py-10">กำลังโหลดข้อมูลพรรค...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-[#9795B5] flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-200 p-6 fixed h-full hidden md:block">
-        <ul className="space-y-4">
-          <li>
-            <Link href="/pr_policy" className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md hover:bg-[#D0CEF0]">
-              นโยบาย
-            </Link>
-          </li>
-          <li>
-            <Link href="/pr_campaign" className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md hover:bg-[#D0CEF0]">
-              โครงการ
-            </Link>
-          </li>
-          <li>
-            <Link href="/pr_event" className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md hover:bg-[#D0CEF0]">
-              กิจกรรม
-            </Link>
-          </li>
-          <li>
-            <Link href="/pr_party_info" className="block text-[#5D5A88] bg-[#E3E1F1] p-3 rounded-md hover:bg-[#D0CEF0]">
-              ข้อมูลพรรค
-            </Link>
-          </li>
-        </ul>
-      </aside>
+      <PRSidebar />
 
       <div className="flex-1 md:ml-64">
         {/* Navbar */}
@@ -108,33 +112,7 @@ export default function PRActivitiesPage() {
         {/* Mobile Sidebar */}
         {menuOpen && (
           <div className="md:hidden bg-gray-100 p-4 absolute top-16 left-0 w-full shadow-md">
-            <ul className="space-y-2">
-              <li>
-                <Link href="/pr_policy" className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200">
-                  นโยบาย
-                </Link>
-              </li>
-              <li>
-                <Link href="/pr_campaign" className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200">
-                  โครงการ
-                </Link>
-              </li>
-              <li>
-                <Link href="/pr_event" className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200">
-                  กิจกรรม
-                </Link>
-              </li>
-              <li>
-                <Link href="/pr_party_info" className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200">
-                  ข้อมูลพรรค
-                </Link>
-              </li>
-              <li>
-                <Link href="/login" className="block text-[#5D5A88] px-4 py-2 hover:bg-gray-200">
-                  ออกจากระบบ
-                </Link>
-              </li>
-            </ul>
+            {/* คุณใส่ PRSidebar แบบ mobile ได้ที่นี่ถ้าทำไว้ */}
           </div>
         )}
 
@@ -154,13 +132,15 @@ export default function PRActivitiesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-6">
             {events.length > 0 ? (
               events.map((event) => (
-                <div key={event.id} className="bg-white p-4 rounded-lg shadow-lg">
-                  <h3 className="text-lg font-semibold">{event.event_name}</h3>
-                  <p className="text-gray-600"><strong>สถานะ:</strong> {event.event_status}</p>
-                  <p className="text-gray-600"><strong>วันที่:</strong> {event.event_date} <strong>เวลา:</strong> {event.event_time}</p>
-                  <p className="text-gray-600"><strong>สถานที่:</strong> {event.event_location}</p>
-                  <p className="text-gray-500 mt-2">{event.event_des}</p>
-                  <div className="mt-4 flex justify-between">
+                <div key={event.id} className="bg-white p-4 rounded-lg shadow-lg flex flex-col h-full">
+                  <div>
+                    <h3 className="text-lg font-semibold">{event.event_name}</h3>
+                    <p className="text-gray-600"><strong>สถานะ:</strong> {event.event_status}</p>
+                    <p className="text-gray-600"><strong>วันที่:</strong> {event.event_date} <strong>เวลา:</strong> {event.event_time}</p>
+                    <p className="text-gray-600"><strong>สถานที่:</strong> {event.event_location}</p>
+                    <p className="text-gray-500 mt-2">{event.event_des ? event.event_des.slice(0, 100) + "..." : "-"}</p>
+                  </div>
+                  <div className="flex justify-between mt-auto pt-4">
                     <button
                       onClick={() => editEvent(event.id)}
                       className="bg-[#5D5A88] text-white px-3 py-1 rounded-md hover:bg-[#46426b]"

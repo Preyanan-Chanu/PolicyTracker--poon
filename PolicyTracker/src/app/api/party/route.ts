@@ -1,36 +1,26 @@
+// ✅ สำหรับ route: /api/party
 import { NextRequest, NextResponse } from "next/server";
 import driver from "@/app/lib/neo4j";
 
-export async function GET(
-  req: NextRequest,
-  context: { params: { name: string } }
-) {
+export async function GET(req: NextRequest) {
   const session = driver.session();
-  const { name } = context.params;
-
   try {
-    const result = await session.run(
-      `
-      MATCH (p:Party {name: $name})
-      RETURN {
-        name: p.name,
-        description: p.description,
-        link: p.link,
-        logo: p.logo
-      } AS party
-      `,
-      { name }
-    );
+    const result = await session.run(`
+      MATCH (p:Party)
+      RETURN p.name AS name, p.description AS description, p.link AS link, p.logo AS logo
+    `);
 
-    if (result.records.length === 0) {
-      return NextResponse.json({ error: `ไม่พบพรรค ${name}` }, { status: 404 });
-    }
+    const parties = result.records.map((r) => ({
+      name: r.get("name"),
+      description: r.get("description"),
+      link: r.get("link"),
+      logo: r.get("logo"),
+    }));
 
-    const party = result.records[0].get("party");
-    return NextResponse.json(party);
+    return NextResponse.json(parties);
   } catch (err) {
     console.error("Neo4j error:", err);
-    return NextResponse.json({ error: "Failed to fetch party" }, { status: 500 });
+    return NextResponse.json({ error: "ไม่สามารถโหลดข้อมูลพรรคได้" }, { status: 500 });
   } finally {
     await session.close();
   }

@@ -11,11 +11,12 @@ export async function GET(req: NextRequest) {
 
     const result = await session.run(
       `
-      MATCH (p:Policy)-[:IN_CATEGORY]->(c:Category {name: $category})
+      MATCH (p:Policy)-[:HAS_CATEGORY]->(c:Category {name: $category})
       OPTIONAL MATCH (p)-[:BELONGS_TO]->(party:Party)
       RETURN p.name AS policyName,
              p.description AS description,
              p.budget AS budget,
+             p.status AS status,
              p.progress AS progress,
              c.name AS categoryName,
              party.name AS partyName
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest) {
       policyName: record.get("policyName"),
       description: record.get("description"),
       budget: record.get("budget")?.toNumber?.() ?? "-",
+      status: record.get("status")?.toString?.() ?? "-",
       progress: record.get("progress")?.toString?.() ?? "-",
       categoryName: record.get("categoryName"),
       partyName: record.get("partyName") || "ไม่ระบุพรรค",
