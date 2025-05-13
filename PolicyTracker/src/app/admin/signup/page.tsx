@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, firestore } from "@/app/lib/firebase";
+import Link from "next/link";
 
 export default function AdminSignupPage() {
   const router = useRouter();
@@ -22,12 +23,17 @@ export default function AdminSignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
 
-      await setDoc(doc(firestore, "users", uid), {
+      const payload: any = {
         email,
         displayName,
         role,
-        partyName: role === "pr" ? partyName : undefined
-      });
+      };
+
+      if (role === "pr") {
+        payload.partyName = partyName;
+      }
+
+      await setDoc(doc(firestore, "users", uid), payload);
 
       setMessage("✅ สร้างบัญชีผู้ใช้สำเร็จ!");
       setEmail("");
@@ -64,12 +70,12 @@ export default function AdminSignupPage() {
         />
 
         <input
-        type="text"
-        placeholder="ชื่อแสดง (Display Name)"
-        value={displayName}
-        onChange={(e) => setDisplayName(e.target.value)}
-        className="w-full p-2 mb-4 border rounded"
-        required
+          type="text"
+          placeholder="ชื่อแสดง (Display Name)"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          className="w-full p-2 mb-4 border rounded"
+          required
         />
 
         <label className="block mb-2">บทบาทผู้ใช้</label>
@@ -104,6 +110,16 @@ export default function AdminSignupPage() {
         >
           ➕ สร้างบัญชีผู้ใช้
         </button>
+
+        <div className="pt-3 text-center">
+  <button
+    type="button"
+    onClick={() => router.back()}
+    className="text-[#5D5A88] underline hover:text-[#46426b]"
+  >
+    ย้อนกลับ
+  </button>
+</div>
       </form>
     </div>
   );

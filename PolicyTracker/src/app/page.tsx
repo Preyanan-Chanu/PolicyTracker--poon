@@ -145,12 +145,15 @@ useEffect(() => {
 
 
   return (
-    <div className="font-prompt bg-[#9795B5] min-h-screen">
+    <div
+      className="font-prompt relative min-h-screen bg-cover bg-center"
+      style={{ backgroundImage: "url('/bg/หัวข้อ.png')" }}
+    >
       <Navbar />
         {/* เอา bg-white ออก ให้ main ไม่มี padding */}
       <main className="w-full m-0 p-0">
         {/* section นี้กำหนด bg เป็นสีเดียวกับ wrapper */}
-      <section className="w-full m-0 p-10 bg-[#9795B5]">
+      <section className="w-full m-0 p-10 ">
         <iframe
           title="หน้าหลัก"
           className="w-full h-[90vh] border-0 block"
@@ -170,14 +173,14 @@ useEffect(() => {
       </section>
 
 {/* Example Section */}
-<section className="example-container bg-white shadow-md p-6 mb-6 h-[630px]">
-  <h2 className="text-3xl font-semibold text-[#5D5A88] mb-4 text-center">
+<section className="example-container bg-white shadow-md p-6 mb-6 h-[700px]">
+  <h2 className="text-3xl font-semibold mt-4 text-[#5D5A88] mb-4 text-center">
     สัญลักษณ์แทนขั้นความคืบหน้า
   </h2>
   
   <div className="example-content-1 flex items-center justify-center mb-8">
     {/* สัญลักษณ์ */}
-    <div className="flex flex-wrap justify-center gap-4 ">
+    <div className="flex flex-wrap justify-center gap-4 mt-4">
       {Object.values(stepMap).map((stepObj, idx) => (
         <Step
           key={idx}
@@ -189,7 +192,7 @@ useEffect(() => {
     </div>
   </div>
   
-  <h2 className="text-3xl font-semibold text-[#5D5A88] mb-4 text-center">
+  <h2 className="text-3xl font-semibold text-[#5D5A88] mt-4 mb-4 text-center">
             ตัวอย่างนโยบายต่างๆแบ่งตามหมวดหมู่
     </h2>
   <div className="example-content-2 flex items-center justify-center space-x-20">
@@ -260,14 +263,14 @@ useEffect(() => {
 
 
 {/* Popular Section */}
-<section className="popular-container bg-[#9795B5] p-6 mb-8">
+<section className="popular-container p-6 mb-8">
   <h2 className="text-3xl font-semibold text-[#ffffff] mb-4 text-center">
     นโยบายที่ได้รับความสนใจสูงสุด
   </h2>
-  <div className="flex space-x-10 mt-4 justify-center">
+  <div className="flex space-x-10 mt-10 justify-center">
 
         {/* Left card: แสดง 5 นโยบายยอดนิยม */}
-        <div className="card2 w-[600px] h-[330px] bg-white shadow-md rounded-xl border-2 border-[#5D5A88] p-4 flex flex-col justify-between">
+        <div className="card2 w-[610px] h-[340px] bg-white shadow-md rounded-xl border-2 border-[#5D5A88] p-4 flex flex-col justify-between">
       <div>
         <h3 className="text-2xl font-bold mb-4 text-[#5D5A88]">
           นโยบายที่ได้รับความสนใจสูงสุด
@@ -293,7 +296,7 @@ useEffect(() => {
 
 
       {/* Right card: แสดง 5 นโยบายล่าสุด */}
-    <div className="card2 w-[600px] h-[330px] bg-white shadow-md rounded-xl border-2 border-[#5D5A88] p-4 flex flex-col justify-between transition-transform hover:scale-105">
+    <div className="card2 w-[610px] h-[340px] bg-white shadow-md rounded-xl border-2 border-[#5D5A88] p-4 flex flex-col justify-between transition-transform hover:scale-105">
       <h3 className="text-2xl font-bold mb-4 text-[#5D5A88] ">
         นโยบายใหม่ล่าสุด
       </h3>

@@ -16,6 +16,8 @@ export default function PRPartyInfoForm() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [existingLogoUrl, setExistingLogoUrl] = useState("");
 
+  const partyId = typeof window !== "undefined" ? localStorage.getItem("partyId") ?? "" : "";
+
   useEffect(() => {
     const fetchPartyList = async () => {
       try {
@@ -24,9 +26,7 @@ export default function PRPartyInfoForm() {
         const names = data.map((p: any) => p.name);
         setPartyList(names);
 
-        const stored = localStorage.getItem("partyName") ?? "";
-        const cleanName = stored.replace(/^\u0E1E\u0E23\u0E23\u0E04\s*/, "").trim();
-        setPartyName(cleanName);
+        
       } catch (err) {
         console.error("Error fetching party list:", err);
       }
@@ -35,30 +35,33 @@ export default function PRPartyInfoForm() {
   }, []);
 
   useEffect(() => {
-    if (!partyName) return;
+  if (!partyId) return;
 
-    const fetchPartyInfo = async () => {
-      try {
-        const res = await fetch(`/api/party/${encodeURIComponent(partyName)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setDescription(data.description || "");
-          setLink(data.link || "");
-          setExistingLogoUrl(
-            `https://firebasestorage.googleapis.com/v0/b/policy-tracker-kp.firebasestorage.app/o/party%2Flogo%2F${encodeURIComponent(partyName)}.png?alt=media`
-          );
-        } else {
-          setDescription("");
-          setLink("");
-          setExistingLogoUrl("");
-        }
-      } catch (err) {
-        console.error("Error loading party:", err);
+  const fetchPartyInfo = async () => {
+    try {
+      const res = await fetch(`/api/pr-partyinfo/${partyId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPartyName(data.name || "");
+        setDescription(data.description || "");
+        setLink(data.link || "");
+        setExistingLogoUrl(
+          `https://firebasestorage.googleapis.com/v0/b/policy-tracker-kp.firebasestorage.app/o/party%2Flogo%2F${encodeURIComponent(data.name)}.png?alt=media`
+        );
+      } else {
+        setPartyName("");
+        setDescription("");
+        setLink("");
+        setExistingLogoUrl("");
       }
-    };
+    } catch (err) {
+      console.error("Error loading party:", err);
+    }
+  };
 
-    fetchPartyInfo();
-  }, [partyName]);
+  fetchPartyInfo();
+}, [partyId]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,15 +81,20 @@ export default function PRPartyInfoForm() {
         logo: logoUrl,
       };
 
-      const res = await fetch(`/api/party/${encodeURIComponent(partyName)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(`/api/pr-partyinfo/${partyId}`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    name: partyName,
+    description,
+    link,
+  }),
+});
+
 
       if (res.ok) {
         alert("✅ บันทึกสำเร็จ");
-        router.push("/pr_party_info");
+        router.push("/prPartyInfo");
       } else {
         alert("❌ บันทึกไม่สำเร็จ");
       }

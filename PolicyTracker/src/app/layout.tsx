@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { Prompt } from "next/font/google";
 
+const prompt = Prompt({
+  subsets: ["thai"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-prompt",
+  display: "swap",
+});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +23,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "PolicyTraker",
-  description: "This is webapp for tracking thai policy",
+  description: "ระบบติดตามนโยบาย",
 };
 
 export default function RootLayout({
@@ -27,7 +34,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+         className={`${prompt.variable} ${geistSans.variable} ${geistMono.variable} font-prompt antialiased`}
       >
         {children}
       </body>

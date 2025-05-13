@@ -172,11 +172,11 @@ if (policy) {
     { id, policy }
   );
 }
-if (campaign) {
+if (campaign && campaign.trim() !== "") {
   await session.run(
     `
     MATCH (e:Event {id: toInteger($id)}), (c:Campaign {name: $campaign})
-    CREATE (e)-[:UNDER_CAMPAIGN]->(c)
+    MERGE (e)-[:UNDER_CAMPAIGN]->(c)
     `,
     { id, campaign }
   );

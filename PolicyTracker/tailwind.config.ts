@@ -9,6 +9,7 @@ export default {
   ],
   theme: {
   	extend: {
+		
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
@@ -56,10 +57,7 @@ export default {
   			}
   		},
   		fontFamily: {
-  			prompt: [
-  				'Prompt"',
-  				'sans-serif'
-  			]
+  			 prompt: ['var(--font-prompt)', 'sans-serif'],
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

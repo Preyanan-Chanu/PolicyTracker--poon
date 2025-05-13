@@ -3,10 +3,22 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Sidebar from "@/app/components/PRSidebar";
+import { useRouter } from "next/navigation";
 
 export default function PRPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [partyName, setPartyName] = useState<string | null>(null);
+
+  const router = useRouter();
+
+  useEffect(() => {
+  const role = localStorage.getItem("role");
+  if (role !== "pr") {
+    alert("❌ คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
+    router.push("/login");
+  }
+}, []);
+
 
   // โหลด partyName จาก localStorage หลัง login
   useEffect(() => {

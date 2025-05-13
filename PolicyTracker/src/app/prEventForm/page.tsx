@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PRSidebar from "../components/PRSidebar";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import {ref, uploadBytes, getDownloadURL, listAll, deleteObject, } from "firebase/storage";
+import { storage } from "@/app/lib/firebase";
 
 
 const containerStyle = {
@@ -48,6 +50,10 @@ export default function PREventForm() {
   const eventId = searchParams.get("event_id");
   const isEditing = !!eventId;
   const libraries: ("places")[] = ["places"];
+  const [eventPictures, setEventPictures] = useState<File[]>([]);
+const [uploadedPictureUrls, setUploadedPictureUrls] = useState<string[]>([]);
+const [picturesToDelete, setPicturesToDelete] = useState<string[]>([]);
+
 
 
   const router = useRouter();
@@ -108,7 +114,19 @@ export default function PREventForm() {
       setSelectedCampaign(data.campaign || "");
       setEventStatus(data.status || "เริ่มต้น"); // ✅ โหลดสถานะ
        console.log("📦 Event province:", data.province);
+
+       try {
+  const folderRef = ref(storage, `event/picture/${data.name}`);
+  const listResult = await listAll(folderRef);
+  const urls = await Promise.all(listResult.items.map((item) => getDownloadURL(item)));
+  setUploadedPictureUrls(urls);
+} catch (err) {
+  console.warn("ไม่พบภาพกิจกรรม:", err);
+}
+
     };
+
+    
 
     fetchEventData();
   }, [eventId]);
@@ -147,6 +165,24 @@ console.log("📦 payload:", payload);
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+
+    // ✅ ลบรูปภาพที่เลือกไว้
+for (const path of picturesToDelete) {
+  try {
+    const fileRef = ref(storage, path);
+    await deleteObject(fileRef);
+  } catch (err) {
+    console.warn("ลบภาพไม่สำเร็จ:", err);
+  }
+}
+
+// ✅ อัปโหลดภาพใหม่
+for (const file of eventPictures) {
+  const uniqueName = `${Date.now()}_${file.name}`;
+  const imageRef = ref(storage, `event/picture/${eventName.trim()}/${uniqueName}`);
+  await uploadBytes(imageRef, file);
+}
+
   
     if (res.ok) {
       alert(eventId ? "✅ แก้ไขกิจกรรมสำเร็จ" : "✅ บันทึกกิจกรรมสำเร็จ");
@@ -200,25 +236,25 @@ console.log("📦 payload:", payload);
             <label className="block font-bold">จังหวัดที่จัดกิจกรรม:</label>
             <select required value={province} onChange={(e) => setProvince(e.target.value)} className="w-full p-2 border rounded">
               <option value="">-- เลือกจังหวัด --</option>
-              {PROVINCES.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
+             {PROVINCES.map((p, idx) => (
+    <option key={`province-${idx}`} value={p}>{p}</option>
+  ))}
             </select>
 
             <label className="block font-bold">นโยบายที่เกี่ยวข้อง:</label>
             <select value={policyName} onChange={(e) => setPolicyName(e.target.value)} className="w-full p-2 border rounded">
               <option value="">-- ไม่เลือกนโยบาย --</option>
-              {policies.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
+             {policies.map((p, idx) => (
+    <option key={`policy-${idx}`} value={p}>{p}</option>
+  ))}
             </select>
 
             <label className="block font-bold">โครงการที่เกี่ยวข้อง:</label>
             <select value={selectedCampaign} onChange={(e) => setSelectedCampaign(e.target.value)} className="w-full p-2 border rounded">
               <option value="">-- ไม่เลือกโครงการ --</option>
-              {campaigns.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
+              {campaigns.map((c, idx) => (
+    <option key={`campaign-${idx}`} value={c}>{c}</option>
+  ))}
             </select>
              
             <label className="block font-bold">เลือกตำแหน่งบนแผนที่:</label>
@@ -234,6 +270,65 @@ console.log("📦 payload:", payload);
                 {markerPos && <Marker position={markerPos} />}
               </GoogleMap>
             )}
+
+            <label className="block font-bold">อัปโหลดรูปภาพเพิ่มเติม:</label>
+<input
+  type="file"
+  accept="image/*"
+  multiple
+  onChange={(e) => {
+    if (e.target.files) {
+      setEventPictures([...eventPictures, ...Array.from(e.target.files)]);
+    }
+  }}
+  className="w-full"
+/>
+
+{/* รูป preview ก่อนอัปโหลด */}
+{eventPictures.length > 0 && (
+  <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+    {eventPictures.map((file, idx) => (
+      <div key={idx} className="relative">
+        <img src={URL.createObjectURL(file)} className="rounded shadow w-full" />
+        <button
+          type="button"
+          onClick={() => setEventPictures(eventPictures.filter((_, i) => i !== idx))}
+          className="absolute top-2 right-2 bg-red-600 text-white rounded-full text-xs px-2"
+        >
+          ✕
+        </button>
+      </div>
+    ))}
+  </div>
+)}
+
+{/* รูปจาก Storage ที่อัปโหลดแล้ว */}
+{uploadedPictureUrls.length > 0 && (
+  <div className="mt-6">
+    <h3 className="font-bold text-[#5D5A88] mb-2">ภาพที่อัปโหลดแล้ว:</h3>
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {uploadedPictureUrls.map((url, idx) => (
+        <div key={idx} className="relative">
+          <img src={url} className="rounded shadow w-full" />
+          <button
+            type="button"
+            onClick={() => {
+              const match = decodeURIComponent(url).match(/\/o\/(.+)\?/);
+              const path = match?.[1];
+              if (!path) return;
+              setPicturesToDelete((prev) => [...prev, path]);
+              setUploadedPictureUrls(uploadedPictureUrls.filter((_, i) => i !== idx));
+            }}
+            className="absolute top-2 right-2 bg-red-600 text-white rounded-full text-xs px-2"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
 
             <button type="submit" className="w-full bg-[#5D5A88] text-white py-2 rounded">บันทึก</button>
             

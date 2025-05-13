@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, listAll, deleteObject, } from "firebase/storage";
 import { storage } from "@/app/lib/firebase";
 import PRSidebar from "@/app/components/PRSidebar";
 
@@ -24,6 +24,10 @@ export default function PRCampaignForm() {
   const [area, setArea] = useState("เขตเดียว");
   const [impact, setImpact] = useState("ต่ำ");
   const [size, setSize] = useState("เล็ก");
+  const [campaignPictures, setCampaignPictures] = useState<File[]>([]);
+  const [uploadedPictureUrls, setUploadedPictureUrls] = useState<string[]>([]);
+  const [picturesToDelete, setPicturesToDelete] = useState<string[]>([]);
+
 
   const searchParams = useSearchParams();
   const campaignId = searchParams.get("campaign_id");
@@ -31,25 +35,25 @@ export default function PRCampaignForm() {
   const router = useRouter();
 
   useEffect(() => {
-  type Area = "เขตเดียว" | "หลายเขต" | "ทั่วประเทศ";
-  type Impact = "ต่ำ" | "ปานกลาง" | "สูง";
-  type Size = "เล็ก" | "กลาง" | "ใหญ่";
+    type Area = "เขตเดียว" | "หลายเขต" | "ทั่วประเทศ";
+    type Impact = "ต่ำ" | "ปานกลาง" | "สูง";
+    type Size = "เล็ก" | "กลาง" | "ใหญ่";
 
-  const mapSize: Record<`${Area}-${Impact}`, Size> = {
-    "เขตเดียว-ต่ำ": "เล็ก",
-    "เขตเดียว-ปานกลาง": "เล็ก",
-    "เขตเดียว-สูง": "กลาง",
-    "หลายเขต-ต่ำ": "เล็ก",
-    "หลายเขต-ปานกลาง": "กลาง",
-    "หลายเขต-สูง": "ใหญ่",
-    "ทั่วประเทศ-ต่ำ": "กลาง",
-    "ทั่วประเทศ-ปานกลาง": "ใหญ่",
-    "ทั่วประเทศ-สูง": "ใหญ่",
-  };
+    const mapSize: Record<`${Area}-${Impact}`, Size> = {
+      "เขตเดียว-ต่ำ": "เล็ก",
+      "เขตเดียว-ปานกลาง": "เล็ก",
+      "เขตเดียว-สูง": "กลาง",
+      "หลายเขต-ต่ำ": "เล็ก",
+      "หลายเขต-ปานกลาง": "กลาง",
+      "หลายเขต-สูง": "ใหญ่",
+      "ทั่วประเทศ-ต่ำ": "กลาง",
+      "ทั่วประเทศ-ปานกลาง": "ใหญ่",
+      "ทั่วประเทศ-สูง": "ใหญ่",
+    };
 
-  const key = `${area}-${impact}` as `${Area}-${Impact}`;
-  setSize(mapSize[key] || "เล็ก");
-}, [area, impact]);
+    const key = `${area}-${impact}` as `${Area}-${Impact}`;
+    setSize(mapSize[key] || "เล็ก");
+  }, [area, impact]);
 
 
   useEffect(() => {
@@ -95,6 +99,14 @@ export default function PRCampaignForm() {
           const pdfRef = ref(storage, `campaign/reference/${cleanName}.pdf`);
           setRefPreviewUrl(await getDownloadURL(pdfRef));
         } catch { }
+        try {
+          const folderRef = ref(storage, `campaign/picture/${cleanName}`);
+          const listResult = await listAll(folderRef);
+          const urls = await Promise.all(listResult.items.map((item) => getDownloadURL(item)));
+          setUploadedPictureUrls(urls);
+        } catch {
+          console.warn("ไม่พบภาพเพิ่มเติม");
+        }
       }
     };
 
@@ -148,8 +160,8 @@ export default function PRCampaignForm() {
         banner: bannerUrl,
         partyName,
         area,
-  impact,
-  size, 
+        impact,
+        size,
       };
 
       const res = await fetch(campaignId ? `/api/pr-campaign/${campaignId}` : `/api/prCampaignForm`, {
@@ -157,6 +169,24 @@ export default function PRCampaignForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
+      // 🔁 ลบภาพที่เลือกไว้
+      for (const path of picturesToDelete) {
+        try {
+          const fileRef = ref(storage, path);
+          await deleteObject(fileRef);
+        } catch (err) {
+          console.warn("ลบรูปไม่สำเร็จ:", err);
+        }
+      }
+
+      // ✅ อัปโหลดภาพใหม่
+      for (const file of campaignPictures) {
+        const uniqueName = `${Date.now()}_${file.name}`;
+        const imageRef = ref(storage, `campaign/picture/${cleanName}/${uniqueName}`);
+        await uploadBytes(imageRef, file);
+      }
+
 
       if (res.ok) {
         alert(campaignId ? "✅ แก้ไขโครงการสำเร็จ" : "✅ สร้างโครงการสำเร็จ");
@@ -236,8 +266,102 @@ export default function PRCampaignForm() {
               </p>
 
               <label className="block font-bold">แบนเนอร์โครงการ:</label>
-              <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setCampaignBanner)} />
-              {bannerPreviewUrl && <img src={bannerPreviewUrl} alt="Banner" className="w-full rounded-md mt-2" />}
+              <input
+  type="file"
+  accept="image/*"
+  onChange={(e) => {
+    if (e.target.files?.[0]) {
+      const file = e.target.files[0];
+      setCampaignBanner(file);
+      const preview = URL.createObjectURL(file);
+      setBannerPreviewUrl(preview);
+    }
+  }}
+/>
+
+              {bannerPreviewUrl && (
+  <div className="mt-2">
+    <img
+      src={bannerPreviewUrl}
+      alt="แบนเนอร์โครงการ"
+      className="w-full rounded-md shadow"
+    />
+  </div>
+)}
+
+
+              <label className="block font-bold">อัปโหลดรูปภาพเพิ่มเติม:</label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setCampaignPictures([...campaignPictures, ...Array.from(e.target.files)]);
+                  }
+                }}
+                className="w-full"
+              />
+
+              {campaignPictures.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="font-bold text-[#5D5A88] mb-2">รูปภาพที่เลือกไว้:</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {campaignPictures.map((file, idx) => (
+                      <div key={idx} className="relative">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`preview-${idx}`}
+                          className="rounded-md shadow-md w-full h-auto"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCampaignPictures(campaignPictures.filter((_, i) => i !== idx))
+                          }
+                          className="absolute top-2 right-2 text-white bg-red-500 rounded-full px-2 py-0.5 text-xs hover:bg-red-700"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+
+              {uploadedPictureUrls.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="font-bold text-[#5D5A88] mb-2">ภาพที่อัปโหลดแล้ว:</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {uploadedPictureUrls.map((url, idx) => (
+                      <div key={idx} className="relative">
+                        <img
+                          src={url}
+                          alt={`uploaded-${idx}`}
+                          className="rounded-md shadow-md w-full"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const match = decodeURIComponent(url).match(/\/o\/(.+)\?/);
+                            const path = match?.[1];
+                            if (!path) return;
+
+                            setPicturesToDelete((prev) => [...prev, path]);
+                            setUploadedPictureUrls(uploadedPictureUrls.filter((_, i) => i !== idx));
+                          }}
+                          className="absolute top-2 right-2 text-white bg-red-600 rounded-full px-2 py-0.5 text-xs hover:bg-red-700"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+
 
               <label className="block font-bold">เอกสารอ้างอิง (PDF):</label>
               <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, setCampaignRef)} />
