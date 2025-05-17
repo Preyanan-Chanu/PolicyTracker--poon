@@ -84,12 +84,9 @@ export default function PRPartyInfoForm() {
       const res = await fetch(`/api/pr-partyinfo/${partyId}`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    name: partyName,
-    description,
-    link,
-  }),
-});
+  body: JSON.stringify(payload),
+    
+ });
 
 
       if (res.ok) {

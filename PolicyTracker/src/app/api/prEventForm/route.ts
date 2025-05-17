@@ -74,9 +74,10 @@ export async function POST(req: NextRequest) {
       { name }
     );
     if (check.records.length > 0) {
+      console.log("❌ Event name ซ้ำ:", name);
       return NextResponse.json({ error: "มีชื่อกิจกรรมนี้อยู่แล้ว กรุณาใช้ชื่ออื่น" }, { status: 400 });
     }
-    await session.run(
+    const result = await session.run(
       `
         CREATE (e:Event {
   name: $name,
@@ -111,12 +112,20 @@ export async function POST(req: NextRequest) {
         MERGE (e)-[:UNDER_CAMPAIGN]->(c)
       )
 
-  RETURN e.name
+  RETURN e.name AS name, e.id AS id
   `,
       { name, description, date, time, location, map, policy, party, province, campaign, region, status }
     );
 
-    return NextResponse.json({ message: "สร้างกิจกรรมสำเร็จ" });
+    console.log("🎯 Result from CREATE query:", result);
+
+const record = result.records[0];
+if (!record) {
+  return NextResponse.json({ error: "สร้างกิจกรรมไม่สำเร็จ: ไม่พบ ID" }, { status: 500 });
+}
+const newEventId = record.get("id").toNumber();
+return NextResponse.json({ message: "สร้างกิจกรรมสำเร็จ", id: newEventId });
+
   } catch (err) {
     console.error("Neo4j error:", err);
     return new NextResponse(JSON.stringify({ error: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" }), {

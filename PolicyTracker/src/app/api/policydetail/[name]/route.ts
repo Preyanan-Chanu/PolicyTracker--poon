@@ -3,9 +3,13 @@ import driver from "@/app/lib/neo4j";
 
 export async function GET(
   req: NextRequest,
-  context: { params: { name: string } }
+  context: { params: Promise<{ name?: string }> }
 ) {
-  const name = decodeURIComponent(context.params.name); // ✅
+  const { name } = await context.params;
+
+  if (!name) {
+    return NextResponse.json({ error: 'Missing name param' }, { status: 400 });
+  }
 
 
   const session = driver.session();

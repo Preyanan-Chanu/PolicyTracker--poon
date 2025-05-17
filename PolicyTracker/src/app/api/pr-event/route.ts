@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import driver from "@/app/lib/neo4j";
 
 export async function POST(req: NextRequest) {
+   const session = driver.session();
   try {
     const { partyName } = await req.json();
     if (!partyName) {
@@ -9,12 +10,14 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanedName = partyName.trim();
-    const session = driver.session();
+    
 
     const query = `
       MATCH (e:Event)-[:ORGANIZED_BY]->(p:Party {name: $partyName})
       RETURN e.id AS id, e.name AS event_name, e.description AS event_des,
-             e.date AS event_date, e.time AS event_time, e.location AS event_location
+       e.date AS event_date, e.time AS event_time, e.location AS event_location,
+       e.map AS map, e.status AS status
+
     `;
     const result = await session.run(query, { partyName: cleanedName });
 
@@ -34,7 +37,7 @@ export async function POST(req: NextRequest) {
     console.error("Error fetching events:", error);
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   } finally {
-    await driver.session().close();
+    await session.close();
   }
 }
 

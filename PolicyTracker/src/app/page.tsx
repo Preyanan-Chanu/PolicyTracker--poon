@@ -208,7 +208,7 @@ useEffect(() => {
       {visibleCards.map((category, idx) => (
         <div
           key={idx}
-          className=" w-[600px] h-[330px] bg-white shadow-md rounded-xl border-2 border-[#5D5A88] p-4 flex flex-col justify-between"
+          className=" w-[600px] h-[350px] bg-white shadow-md rounded-xl border-2 border-[#5D5A88] p-4 flex flex-col justify-between"
         >
           <div>
             <h3 className="text-2xl font-bold mb-4 text-[#5D5A88]">
@@ -239,7 +239,7 @@ useEffect(() => {
             </ul>
           </div>
 
-          <div className="text-right mt-2">
+          <div className="text-right mt-2 mb-4">
             <Link
               href={`/policycategory/${encodeURIComponent(category.name)}`}
               className="text-sm text-[#5D5A88] underline hover:text-[#3f3c62]"

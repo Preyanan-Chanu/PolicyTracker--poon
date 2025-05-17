@@ -12,6 +12,7 @@ const PRSidebar = ({ isMobile = false, onClose }: SidebarProps) => {
     { href: "/prCampaign", label: "โครงการ" },
     { href: "/prEvent", label: "กิจกรรม" },
     { href: "/prPartyInfo", label: "ข้อมูลพรรค" },
+    { href: "/login", label: "ออกจากระบบ" },
   ];
 
   return (

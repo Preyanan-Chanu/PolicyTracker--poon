@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 export default function AdminSidebar() {
   const router = useRouter();
 
+  const handleLogout = () => {
+    localStorage.clear(); // ✅ ลบ role, token, partyName ออกจาก localStorage
+    router.push("/login"); // ✅ กลับหน้า login
+  };
+
   return (
     <aside className="w-64 h-screen bg-white text-[#5D5A88] shadow-md fixed left-0 top-0 flex flex-col">
       <button
@@ -27,6 +32,13 @@ export default function AdminSidebar() {
           className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 transition"
         >
           🏛️ จัดการพรรคการเมือง
+        </button>
+
+        <button
+          onClick={handleLogout}
+          className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 transition"
+        >
+          🚪 ออกจากระบบ
         </button>
       </nav>
     </aside>

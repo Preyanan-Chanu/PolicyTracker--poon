@@ -6,6 +6,9 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, firestore } from "@/app/lib/firebase";
 import Link from "next/link";
+import driver from "@/app/lib/neo4j";
+
+
 
 export default function AdminSignupPage() {
   const router = useRouter();
@@ -31,7 +34,26 @@ export default function AdminSignupPage() {
 
       if (role === "pr") {
         payload.partyName = partyName;
+
+        const res = await fetch("/api/getPartyIdByName", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: partyName }),
+        });
+        if (!res.ok) {
+          setMessage("❌ ไม่พบพรรคนี้ในระบบ Neo4j");
+          return;
+        }
+        const { partyId } = await res.json();
+        payload.partyId = partyId;
+
+        if (partyId === null) {
+          setMessage("❌ ไม่พบพรรคนี้ในระบบ Neo4j");
+          return;
+        }
+        payload.partyId = partyId;
       }
+
 
       await setDoc(doc(firestore, "users", uid), payload);
 
@@ -93,7 +115,7 @@ export default function AdminSignupPage() {
             <label className="block mb-2">ชื่อพรรค</label>
             <input
               type="text"
-              placeholder="เช่น พรรคเพื่อไทย"
+              placeholder="เช่น เพื่อไทย (ไม่ต้องใส่คำว่า 'พรรค')"
               value={partyName}
               onChange={(e) => setPartyName(e.target.value)}
               className="w-full p-2 mb-4 border rounded"
@@ -112,14 +134,14 @@ export default function AdminSignupPage() {
         </button>
 
         <div className="pt-3 text-center">
-  <button
-    type="button"
-    onClick={() => router.back()}
-    className="text-[#5D5A88] underline hover:text-[#46426b]"
-  >
-    ย้อนกลับ
-  </button>
-</div>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="text-[#5D5A88] underline hover:text-[#46426b]"
+          >
+            ย้อนกลับ
+          </button>
+        </div>
       </form>
     </div>
   );

@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
              po.name AS policy,
              c.name AS campaign
       `,
-      { id }
+      { id: idNumber }
     );
 
     if (result.records.length === 0) {
@@ -66,7 +66,7 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
 
       DETACH DELETE e
       `,
-      { id }
+      { id: idNumber }
     );
 
     return NextResponse.json({ message: "ลบกิจกรรมสำเร็จ" });

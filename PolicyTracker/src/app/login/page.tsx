@@ -27,11 +27,12 @@ export default function LoginPage() {
         return;
       }
 
-      const { role, partyName } = userDoc.data();
+      const { role, partyName, partyId } = userDoc.data();
 
       localStorage.setItem("role", role);
     if (role === "pr") {
       localStorage.setItem("partyName", partyName);
+      localStorage.setItem("partyId", String(partyId));
       router.push("/pr");
 
     } else if (role === "admin") {

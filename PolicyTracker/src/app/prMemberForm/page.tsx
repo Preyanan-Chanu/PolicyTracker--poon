@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, setDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL, } from "firebase/storage";
+import { doc, setDoc, getDocs, collection} from "firebase/firestore";
 import { storage, firestore } from "@/app/lib/firebase";
 import PRSidebar from "../components/PRSidebar";
 
@@ -36,38 +36,51 @@ export default function PRMemberForm() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!memberName || !memberSurname || !memberRole || !memberPic) {
-      alert("กรุณากรอกข้อมูลให้ครบ");
-      return;
-    }
+  e.preventDefault();
+  if (!memberName || !memberSurname || !memberRole || !memberPic) {
+    alert("กรุณากรอกข้อมูลให้ครบ");
+    return;
+  }
 
-    const fileExt = memberPic.name.split(".").pop()?.toLowerCase() === "png" ? "png" : "jpg";
+  const fileExt = memberPic.name.split(".").pop()?.toLowerCase() === "png" ? "png" : "jpg";
   const fullName = `${memberName.trim()}_${memberSurname.trim()}`;
-  const storagePath = `party/member/${partyName}/${fullName}.${fileExt}`;
+  const firestorePath = `Party/${partyName}/Member`;
 
-    try {
-      // ✅ Upload Image
-      const imageRef = ref(storage, storagePath);
-      await uploadBytes(imageRef, memberPic);
-      const imageUrl = await getDownloadURL(imageRef);
+  try {
+    // ✅ ดึง collection และคำนวณ id ใหม่
+    const memberCollection = collection(firestore, firestorePath);
+    const snapshot = await getDocs(memberCollection);
 
-      // ✅ Save to Firestore
-      const docRef = doc(firestore, `Party/${partyName}/Member/${fullName}`);
-      await setDoc(docRef, {
-        FirstName: memberName,
-        LastName: memberSurname,
-        Role: memberRole,
-        Picture: `/member/${fullName}.${fileExt}`,
-      });
+    const validIds = snapshot.docs
+  .map(doc => doc.data().id)
+  .filter(id => typeof id === "number" && !isNaN(id));
 
-      alert("✅ บันทึกข้อมูลสมาชิกสำเร็จ");
-      router.push("/prPartyInfo");
-    } catch (err) {
-      console.error("❌ Error saving member:", err);
-      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
-    }
-  };
+    const maxId = Math.max(...snapshot.docs.map(doc => doc.data().id || 0), 0);
+    const newId = maxId + 1;
+
+    // ✅ Upload Image ด้วยชื่อ id
+    const imageRef = ref(storage, `party/member/${partyName}/${newId}.${fileExt}`);
+    await uploadBytes(imageRef, memberPic);
+    const imageUrl = await getDownloadURL(imageRef);
+
+    // ✅ บันทึกข้อมูล Firestore โดยใช้ fullName เป็น documentId
+    const docRef = doc(firestore, firestorePath, String(newId));
+    await setDoc(docRef, {
+      FirstName: memberName,
+      LastName: memberSurname,
+      Role: memberRole,
+      Picture: `/member/${newId}.${fileExt}`,
+      id: newId,
+    });
+
+    alert("✅ บันทึกข้อมูลสมาชิกสำเร็จ");
+    router.push("/prPartyInfo");
+  } catch (err) {
+    console.error("❌ Error saving member:", err);
+    alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-[#9795B5] flex">

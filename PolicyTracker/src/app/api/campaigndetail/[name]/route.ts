@@ -5,56 +5,58 @@ import { storage } from '@/app/lib/firebase'
 import { ref, getDownloadURL } from 'firebase/storage'
 
 export async function GET(
-  req: NextRequest,
-  context: { params: { name?: string } }
+  request: NextRequest,
+  { params }: { params: { name?: string } }
 ) {
-  const name = context.params.name; // ✅ ใช้แบบนี้แทน
-
+  const name = params.name
   if (!name) {
     return NextResponse.json({ error: 'Missing name param' }, { status: 400 })
   }
 
   const session = driver.session()
   try {
-    // 1) ดึงข้อมูล Campaign + relatedPolicies + party
     const result = await session.run(
       `
-          MATCH (c:Campaign {name: $name})-[:PART_OF]->(p:Policy)
-    
-    // หา campaign อื่นๆ ที่อยู่ใน policy เดียวกัน ยกเว้นตัวเอง
-    OPTIONAL MATCH (p)<-[:PART_OF]-(other:Campaign)
-      WHERE other.name <> $name
-    WITH c, p, collect({ name: other.name, description: other.description }) AS relatedProjects
+      // 1) เริ่มจากดึง Campaign หลักและ Policy ที่มันสังกัด
+      MATCH (c:Campaign { name: $name })-[:PART_OF]->(p:Policy)
 
-    // ดึงพรรค
-    OPTIONAL MATCH (p)-[:BELONGS_TO]->(party:Party)
-    WITH c, p, relatedProjects, head(collect(party)) AS partyNode
+      // 2) หา Campaign อื่น ๆ ใน Policy เดียวกัน ยกเว้นตัวเอง
+      OPTIONAL MATCH (p)<-[:PART_OF]-(other:Campaign)
+        WHERE other.name <> $name
 
-    // ✅ ดึง Event ที่เชื่อมกับ Campaign ผ่าน UNDER_CAMPAIGN
-    OPTIONAL MATCH (e:Event)-[:UNDER_CAMPAIGN]->(c)
-    WITH c, p, relatedProjects, partyNode,
-         collect({ name: e.name, description: e.description }) AS relatedEvents
+      // ส่งต่อ c, p และรวบรวม relatedProjects
+      WITH c, p, collect({ name: other.name, description: other.description }) AS relatedProjects
 
-    RETURN {
-      name: c.name,
-      description: c.description,
-      status: c.status,
-      relatedProjects: relatedProjects,
-      relatedEvents: relatedEvents,
-      policy: {
-        name: p.name,
-        description: p.description,
-        status: p.status
-      },
-      party: CASE WHEN partyNode IS NULL THEN null ELSE {
-        name: partyNode.name,
-        description: partyNode.description,
-        link: partyNode.link
-      } END
-    } AS campaign
-  `,
-  { name }
-)
+      // 3) หา Party ที่ Policy นี้สังกัด (อาจไม่มี)
+      OPTIONAL MATCH (p)-[:BELONGS_TO]->(party:Party)
+      WITH c, p, relatedProjects, head(collect(party)) AS partyNode
+
+      // 4) หา Event ที่ BELONGS_TO นโยบายนี้
+      OPTIONAL MATCH (e:Event)-[:BELONGS_TO]->(p)
+      WITH c, p, relatedProjects, partyNode,
+           collect({ name: e.name, description: e.description }) AS relatedEvents
+
+      // 5) คืนผลเป็น object เดียว
+      RETURN {
+        name:            c.name,
+        description:     c.description,
+        status:          c.status,
+        relatedProjects: relatedProjects,
+        policy: {
+          name:        p.name,
+          description: p.description,
+          status:      p.status
+        },
+        party: CASE WHEN partyNode IS NULL THEN null ELSE {
+          name:        partyNode.name,
+          description: partyNode.description,
+          link:        partyNode.link
+        } END,
+        relatedEvents: relatedEvents
+      } AS campaign
+      `,
+      { name }
+    )
 
     if (result.records.length === 0) {
       return NextResponse.json({ error: `ไม่พบข้อมูลโครงการ: ${name}` }, { status: 404 })
@@ -62,7 +64,7 @@ export async function GET(
 
     const campaign = result.records[0].get('campaign')
 
-    // 2) ดึง banner จาก Firebase Storage (jpg, png)
+    // 6) ดึง banner จาก Firebase Storage
     let bannerUrl: string | null = null
     for (const ext of ['jpg', 'png'] as const) {
       try {
@@ -70,10 +72,11 @@ export async function GET(
           ref(storage, `campaign/banner/${name}.${ext}`)
         )
         break
-      } catch { }
+      } catch {
+        // ถ้าไม่เจอไฟล์ชนิดนี้ก็ข้ามไป
+      }
     }
 
-    // 3) ส่งกลับ JSON พร้อม campaign data และ banner URL (ถ้ามี)
     return NextResponse.json({
       ...campaign,
       banner: bannerUrl

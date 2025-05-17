@@ -3,9 +3,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { storage } from '@/app/lib/firebase'
 import { ref, getDownloadURL } from 'firebase/storage'
 
-export async function GET(req: NextRequest, context: { params: Promise<{ name?: string }> }) {
-  const { name } = await context.params;
-
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { name?: string } }
+) {
+  const name = params.name
   if (!name) {
     return NextResponse.json({ error: 'Missing name param' }, { status: 400 })
   }

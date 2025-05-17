@@ -3,7 +3,10 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
-import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap } from "@react-google-maps/api";
+import { useGoogleMapsLoader } from "@/app/lib/googleMapsLoader";
+import { ref, getDownloadURL } from "firebase/storage";
+import { storage } from "@/app/lib/firebase";
 
 const mapContainerStyle = {
   width: "70%",
@@ -12,25 +15,41 @@ const mapContainerStyle = {
 
 const EventDetailPage = () => {
   const { name } = useParams();
-
   const decodedName = decodeURIComponent(name as string);
+  const router = useRouter();
+  const { isLoaded } = useGoogleMapsLoader();
 
   const [eventData, setEventData] = useState<any>(null);
-
-  const router = useRouter();
-
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
-    libraries: ["marker"], // ใช้สำหรับ AdvancedMarkerElement
-  });
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       const res = await fetch(`/api/eventdetail/${encodeURIComponent(decodedName)}`);
       const data = await res.json();
       setEventData(data);
+       fetchBanner(data.id);
     };
+
+    const fetchBanner = async (eventId: string | number) => {
+  try {
+    const bannerRefJpg = ref(storage, `event/banner/${eventId}.jpg`);
+    const bannerRefPng = ref(storage, `event/banner/${eventId}.png`);
+
+    try {
+      const url = await getDownloadURL(bannerRefJpg);
+      setBannerUrl(url);
+    } catch {
+      const url = await getDownloadURL(bannerRefPng);
+      setBannerUrl(url);
+    }
+  } catch (error) {
+    console.warn("ไม่พบรูป banner:", error);
+  }
+};
+
+
     fetchData();
+  
   }, [decodedName]);
 
   if (!eventData) return <div className="text-center py-20">กำลังโหลดข้อมูล...</div>;
@@ -54,80 +73,99 @@ const EventDetailPage = () => {
   };
 
   return (
-    <div className="bg-white text-[#5D5A88]">
-      <Navbar />
-      <div className="bg-[url('/สมาชิกสัมพันธ์.jpg')] h-[400px] flex bg-cover bg-center">
+    <div className="bg-white text-[#5D5A88] font-prompt">
+  <Navbar />
+
+  {/* แสดง Banner พร้อม overlay ชื่อ */}
+  <div
+    className="relative h-[400px] bg-cover bg-center flex items-end"
+    style={{
+      backgroundImage: `url(${bannerUrl || "/สมาชิกสัมพันธ์.jpg"})`,
+    }}
+  >
+    <div className="absolute top-4 left-4">
       <button
         onClick={() => router.back()}
-        className="bg-white py-2 px-4 rounded-full h-[50px] m-4"
+        className="bg-white text-[#5D5A88] hover:bg-[#5D5A88] hover:text-white px-4 py-2 rounded-full shadow transition"
       >
         ย้อนกลับ
       </button>
-      </div>
-
-      <div className="border-2 border-gray-300 rounded-lg m-4 p-10">
-        <div className="flex justify-between mb-4">
-          <h2 className="text-2xl font-bold">{eventData.name}</h2>
-          <div className="flex gap-4">
-          {eventData.relatedPolicy && (
-            <button
-              onClick={() => router.push(`/policydetail/${encodeURIComponent(eventData.relatedPolicy.name)}`)}
-              className="bg-theme3 rounded-full px-4 py-2 text-white"
-            >
-              นโยบายที่เกี่ยวข้อง
-            </button>
-          )}
-            <img src={`/party/logo/${eventData.party}.png`} alt="" className="h-[40px]" />
-          </div>
-        </div>
-
-        <div className="flex gap-10 ml-5 mb-5">
-          <div className="font-bold">
-            <p>วัน</p>
-            <p>เวลา</p>
-            <p>สถานที่</p>
-            <p>สถานะ</p>
-          </div>
-          <div>
-            <p>{eventData.date}</p>
-            <p>{eventData.time}</p>
-            <p>{eventData.location}</p>
-            <p>เสร็จสิ้นแล้ว</p>
-          </div>
-        </div>
-
-        <h2 className="text-lg font-bold mb-3">รายละเอียด</h2>
-        <p className="ml-5 mb-5">{eventData.description}</p>
-
-        <h2 className="mb-3">แผนที่</h2>
-        <div className="flex justify-center">
-        {isLoaded ? (
-            <GoogleMap
-              mapContainerStyle={mapContainerStyle}
-              center={center}
-              zoom={15}
-              options={{ mapId: "91a816168c37298d" }}
-              onLoad={handleMapLoad}
-            />
-          ) : (
-            <div>กำลังโหลดแผนที่...</div>
-          )}
-        </div>
-
-        <div className="flex justify-center my-5">
-          <a
-            href={`https://www.google.com/maps/dir/?api=1&destination=${center.lat},${center.lng}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-theme3 text-white no-underline rounded-full px-4 py-2 text-lg"
-          >
-            แสดงเส้นทาง
-          </a>
-        </div>
-      </div>
-
-      <Footer />
     </div>
+    <div className="bg-black/50 w-full text-white p-6 rounded-t-xl">
+      <h1 className="text-3xl font-bold">{eventData.name}</h1>
+    </div>
+  </div>
+    
+    <div className="bg-[url('/bg/หัวข้อ.png')] bg-cover bg-center">
+  <div className="max-w-5xl mx-auto p-6">
+    {/* Metadata */}
+    <div className="grid md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl shadow mb-6">
+      <div className="space-y-2 font-semibold">
+        <p>📅 วัน: {eventData.date}</p>
+        <p>⏰ เวลา: {eventData.time}</p>
+        <p>📍 สถานที่: {eventData.location}</p>
+        <p>🧭 สถานะ: {eventData.status}</p>
+      </div>
+      <div className="flex items-start justify-end gap-4">
+        {eventData.relatedPolicy && (
+          <button
+            onClick={() =>
+              router.push(`/policydetail/${encodeURIComponent(eventData.relatedPolicy.name)}`)
+            }
+            className="bg-[#5D5A88] text-white px-4 py-2 rounded-full shadow hover:bg-[#403b7a] transition"
+          >
+            นโยบายที่เกี่ยวข้อง
+          </button>
+        )}
+        <img
+          src={`https://firebasestorage.googleapis.com/v0/b/policy-tracker-kp.firebasestorage.app/o/party%2Flogo%2F${encodeURIComponent(eventData.party)}.png?alt=media`}
+          alt="โลโก้พรรค"
+          className="h-[40px]"
+          onError={(e) =>
+            ((e.target as HTMLImageElement).src = "/default-logo.png")
+          }
+        />
+      </div>
+    </div>
+
+    {/* คำอธิบาย */}
+    <div className="bg-white p-6 rounded-xl shadow mb-6">
+      <h2 className="text-xl font-bold mb-2 text-[#5D5A88]">รายละเอียดกิจกรรม</h2>
+      <p className="text-gray-700 leading-relaxed">{eventData.description}</p>
+    </div>
+
+    {/* แผนที่ */}
+    <div className="bg-white p-6 rounded-xl shadow mb-6">
+      <h2 className="text-xl font-bold mb-4 text-[#5D5A88]">แผนที่</h2>
+      <div className="flex justify-center mb-4">
+        {isLoaded ? (
+          <GoogleMap
+            mapContainerStyle={mapContainerStyle}
+            center={center}
+            zoom={15}
+            options={{ mapId: "91a816168c37298d" }}
+            onLoad={handleMapLoad}
+          />
+        ) : (
+          <p>กำลังโหลดแผนที่...</p>
+        )}
+      </div>
+      <div className="text-center">
+        <a
+          href={`https://www.google.com/maps/dir/?api=1&destination=${center.lat},${center.lng}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-[#5D5A88] text-white px-5 py-2 rounded-full shadow hover:bg-[#403b7a] transition inline-block"
+        >
+          แสดงเส้นทาง
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+  <Footer />
+</div>
+
   );
 };
 

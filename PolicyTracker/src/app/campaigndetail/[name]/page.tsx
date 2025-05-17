@@ -10,7 +10,8 @@ import { useRouter } from "next/navigation";
 import { storage, ref, getDownloadURL } from "@/app/lib/firebase";
 import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
 import { Heart } from "lucide-react";
-
+import { ArrowLeft } from "lucide-react";
+import {  listAll } from "firebase/storage";
 
 interface TimelineItem {
   date: string;
@@ -41,6 +42,7 @@ const CampaignDetailPage = () => {
 
   const [policyName, setPolicyName] = useState("");
   const [description, setDescription] = useState("");
+  const [logoUrl, setLogoUrl] = useState<string>("");
 
   // 2. State เก็บ like
   const [likeCount, setLikeCount] = useState<number>(0);
@@ -68,8 +70,8 @@ const CampaignDetailPage = () => {
   const [bannerUrl, setBannerUrl] = useState<string>("");
   const [policy, setPolicy] = useState<{ name: string; description: string; status: string } | null>(null);
   const [relatedEvents, setRelatedEvents] = useState<{ name: string; description: string }[]>([]);
-
-
+    const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+    const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -94,7 +96,7 @@ const CampaignDetailPage = () => {
         setDescription(data.description || "");
         setStatus(data.status || null);
         setRelatedProjects(data.relatedProjects || []); // ✅ set โครงการ
-        setParty(data.policy?.party || null);
+        setParty(data.party || null);
         setPolicy(data.policy || null);
         setRelatedEvents(Array.isArray(data.relatedEvents) ? data.relatedEvents : []);
 
@@ -237,16 +239,68 @@ const CampaignDetailPage = () => {
     }
   };
 
+useEffect(() => {
+  async function fetchData() {
+    const res = await fetch(`/api/campaigndetail/${encodeURIComponent(name)}`);
+    const data = await res.json();
+    // … ดึง banner เดิม …
+    // ➡️ ดึงโลโก้พรรค
+    if (data.party?.name) {
+      const logoRes = await fetch(`/api/partylogo/${encodeURIComponent(data.party.name)}`);
+      if (logoRes.ok) setLogoUrl(logoRes.url);
+      else console.warn('ไม่พบโลโก้ใน API /api/partylogo');
+    }
+  }
+  fetchData();
+}, [name]);
+
+useEffect(() => {
+  // สมมติว่าใน Firebase Console คุณอัปโหลดโฟลเดอร์ชื่อตรง ๆ
+  // เช่น "campaign/picture/My Campaign" (มีช่องว่าง, อักขระไทย ฯลฯ)
+  const folderRef = ref(storage, `campaign/picture/${name}`);
+
+  listAll(folderRef)
+    .then(res => {
+      // ดูว่ามันเจอไฟล์อะไรบ้าง
+      console.log("found items:", res.items.map(i => i.fullPath));
+      return Promise.all(res.items.map(item => getDownloadURL(item)));
+    })
+    .then(urls => {
+      console.log("download URLs:", urls);
+      setGalleryUrls(urls);
+    })
+    .catch(err => {
+      console.error("โหลดแกลเลอรีผิดพลาด:", err);
+    });
+}, [name]);
+
+
   return (
     <div className="font-prompt">
       <div className="bg-white">
         <Navbar />
-        <div className="grid grid-rows-[auto_auto_1fr_1fr] grid-cols-4 grid-rows-4 bg-gradient-to-r from-[#0f0c29] via-[#302b63] to-[#24243e] h-[50svh]">
-          <div className="flex items-start ml-10 mt-10">
-            <button
+    <div
+      className="relative grid grid-rows-[auto_auto_1fr_1fr] grid-cols-4 h-[50svh] bg-cover bg-center"
+      style={{
+        backgroundImage: "url('/bg/หัวข้อ.png')"
+      }}
+    >          
+    <div className="flex items-start ml-10 mt-10">
+           <button
               onClick={() => router.back()}
-              className="text-[#5D5A88] bg-[#FFFFFF] hover:bg-[#5D5A88] hover:text-[#FFFFFF] rounded-full px-4 py-2"
+              className="
+                flex items-center gap-2
+                px-6 py-3
+                bg-white text-[#2C3E50] font-medium
+                rounded-full
+                shadow-md hover:shadow-lg
+               hover:!bg-[#316599] hover:!text-white
+                transform hover:-translate-y-0.5
+                transition-all duration-200 ease-in-out
+                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5D5A88]/50
+              "
             >
+              <ArrowLeft className="w-5 h-5" />
               ย้อนกลับ
             </button>
           </div>
@@ -304,6 +358,28 @@ const CampaignDetailPage = () => {
               )}
             </div>
 
+             {/* Badge พรรค */}
+          {party && logoUrl && (
+        <Link
+          href={`/party/${encodeURIComponent(party.name)}`}
+          className="absolute top-6 right-6 z-20"
+        >
+          <div className="bg-white rounded-2xl shadow-lg p-4 flex items-center space-x-3 cursor-pointer">
+            {/* กล่องเก็บรูปขนาด 48x48px พร้อม overflow */}
+            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100">
+              <img
+                src={logoUrl}
+                alt={`โลโก้พรรค ${party.name}`}
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <span className="text-gray-800 font-semibold text-base">
+              พรรค{party.name}
+            </span>
+          </div>
+        </Link>
+      )}
+
           </div>
 
           <div className="row-start-3 col-start-2 col-span-2 flex justify-center items-center p-10 space-x-4">
@@ -327,149 +403,59 @@ const CampaignDetailPage = () => {
         </div>
 
 
-        {/* ── Banner Section ── */}
-        <div className="relative w-full h-[25svh] overflow-hidden">
-          {/* 1. ภาพพื้นหลัง จางด้วย brightness */}
-          <img
-            src={bannerUrl}
-            alt="Banner"
-            className="absolute inset-0 w-full h-full object-cover filter brightness-50 opacity-80"
-          />
-          {/* 2. Overlay เบา ๆ (ถ้าไม่ต้องการให้มืดลงมาก) */}
-          {/* <div className="absolute inset-0 bg-black bg-opacity-10"></div> */}
+<div className=" bg-[#e2edfe] relative z-10 flex flex-col justify-center items-start h-full px-14 sm:px-16 lg:px-20 ">
 
-          {/* 3. ข้อความชิดซ้าย */}
-          <div className="relative z-10 flex flex-col justify-center items-start h-full px-10">
-            {party ? (
-              <>
-                <h1 className="text-white font-bold text-[2rem] mb-2 text-left">
-                  นโยบายจากพรรค{party.name}
-                </h1>
-                <p className="text-white text-[1rem] mb-4 text-left max-w-2xl">
-                  {party.description}
-                </p>
-                {party && (
-                  <Link
-                    href={`/party/${encodeURIComponent(party.name)}`}
-                    className="self-start rounded-md bg-[#5D5A88] px-6 py-2 text-white hover:bg-[#46426b]"
-                  >
-                    อ่านเพิ่มเติมเกี่ยวกับพรรค
-                  </Link>
-                )}
-              </>
-            ) : (
-              <>
-                <h1 className="text-white font-bold text-[2.5rem] mb-2 text-left">
-                  {policyName}
-                </h1>
-                <p className="text-white text-[1.5rem] text-left max-w-2xl">
-                  {description}
-                </p>
-              </>
-            )}
-          </div>
-        </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 my-12 ">
+        <section>
+              
+         
 
-
-
-
-        <div className="w-5/6 mx-auto">
-          <h2 className="text-[#5D5A88] my-10">ลำดับเหตุการณ์</h2>
-          {/* ✅ สร้าง State เพื่อดูว่าจะแสดงทั้งหมดไหม */}
-          {timeline.length > 0 && (
-            <>
-              <ol className="items-center sm:flex bg-white mb-0 flex-wrap">
-                {(showAllTimeline ? timeline : timeline.slice(0, 4)).map((item, idx) => (
-                  <li key={idx} className="relative mb-6 sm:mb-0 w-full sm:w-auto">
-                    <div className="flex items-center">
-                      <div className="z-10 flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full"></div>
-                      <div className="hidden sm:flex w-full bg-gray-200 h-0.5"></div>
-                    </div>
-                    <div className="mt-3 sm:pe-8">
-                      <h3 className="text-lg font-semibold text-gray-900">{item.name}</h3>
-                      <time className="block mb-2 text-sm text-gray-400">{item.date}</time>
-                      <p className="text-base text-gray-500">{item.description}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-
-              {/* ✅ ปุ่มดูเพิ่มเติม */}
-              {timeline.length > 4 && (
-                <div className="text-center mt-4">
-                  <button
-                    className="px-4 py-2 bg-[#5D5A88] text-white rounded-md"
-                    onClick={() => setShowAllTimeline(!showAllTimeline)}
-                  >
-                    {showAllTimeline ? "แสดงน้อยลง" : "ดูเพิ่มเติม"}
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-
-          <h2 className="text-[#5D5A88] my-10">ความสำเร็จ</h2>
-          <div className="flex justify-center bg-white h-[300px]">
-            <div className="grid grid-cols-3 gap-6 w-1/2 mt-10 mb-10 max-w-[900px] w-full">
-              <div className="border border-gray-300 rounded-xl p-4 text-center max-w-[300px]">
-                <h3 className="text-[#5D5A88] mb-3">เชิงโครงการ</h3>
-                <p className="text-[#5D5A88]">{achievement.project?.description || "-"}</p>
-              </div>
-              <div className="border border-gray-300 rounded-xl p-4 text-center max-w-[300px]">
-                <h3 className="text-[#5D5A88] mb-3">เชิงกระบวนการ</h3>
-                <p className="text-[#5D5A88]">{achievement.process?.description || "-"}</p>
-              </div>
-              <div className="border border-gray-300 rounded-xl p-4 text-center max-w-[300px]">
-                <h3 className="text-[#5D5A88] mb-3">เชิงนโยบาย</h3>
-                <p className="text-[#5D5A88]">{achievement.policy?.description || "-"}</p>
-              </div>
-            </div>
-          </div>
-
-          <h2 className="text-[#5D5A88] my-10">โครงการที่เกี่ยวข้อง</h2>
+          <h2 className="text-[#2C3E50]  font-bold my-10">โครงการที่เกี่ยวข้อง</h2>
           {relatedProjects.length > 0 ? (
-            <div className="grid grid-cols-2 gap-6 mt-4 mb-20">
+            <div className="bg-[#ffffff] rounded-3xl grid  grid-cols-1 gap-10 mt-4 mb-20 shadow-xl hover:shadow-2xl transition-shadow">
               {relatedProjects.map((project, idx) => (
                 <Link
                   href={`/campaigndetail/${encodeURIComponent(project.name)}`}
                   key={project.name || idx} // ใช้ name ถ้ามี หรือ fallback เป็น index
                   className="no-underline"
                 >
-                  <div className="border border-gray-300 rounded-xl p-4 hover:shadow-md transition cursor-pointer h-full">
-                    <h3 className="text-[#5D5A88] mb-2">{project.name}</h3>
-                    <p className="text-[#5D5A88]">{project.description}</p>
+                  <div className="w-full border border-gray-300 rounded-xl p-4 hover:shadow-md transition cursor-pointer h-full">
+                    <h3 className="text-[#34495E] mb-2">{project.name}</h3>
+                    <p className="text-[#34495E]">{project.description}</p>
                   </div>
                 </Link>
               ))}
             </div>
           ) : (
-            <p className="text-[#5D5A88] mb-10">ไม่มีโครงการที่เกี่ยวข้อง</p>
+            <p className="text-[#34495E] mb-10">ไม่มีโครงการที่เกี่ยวข้อง</p>
           )}
 
           {/* ── นโยบายที่เกี่ยวข้อง ── */}
-          <h2 className="text-[#5D5A88] my-10">นโยบายที่เกี่ยวข้อง</h2>
+          <h2 className="text-[#2C3E50] font-bold my-10">นโยบายที่เกี่ยวข้อง</h2>
           {policy ? (
-            <div className="grid grid-cols-2 gap-6 mt-4 mb-20">
+            <div className="bg-[#ffffff] rounded-3xl grid grid-cols-1 gap-10 mt-4 mb-20 shadow-xl hover:shadow-2xl transition-shadow">
               <Link
                 href={`/policydetail/${encodeURIComponent(policy.name)}`}
                 key={policy.name}
                 className="no-underline"
               >
                 <div className="border border-gray-300 rounded-xl p-4 hover:shadow-md transition cursor-pointer h-full">
-                  <h3 className="text-[#5D5A88] mb-2">{policy.name}</h3>
-                  <p className="text-[#5D5A88]">{policy.description}</p>
+                  <h3 className="text-[#34495E] mb-2">{policy.name}</h3>
+                  <p className="text-[#34495E]">{policy.description}</p>
                 </div>
               </Link>
             </div>
           ) : (
-            <p className="text-[#5D5A88] mb-10">ไม่มีนโยบายที่เกี่ยวข้อง</p>
+            <p className="text-[#34495E] mb-10">ไม่มีนโยบายที่เกี่ยวข้อง</p>
           )}
+  </section>
 
+  <section>
           {/* ── กิจกรรมที่เกี่ยวข้อง ── */}
-          <h2 className="text-[#5D5A88] my-10">กิจกรรมที่เกี่ยวข้อง</h2>
+          <h2 className="text-[#2C3E50] font-bold my-10">กิจกรรมที่เกี่ยวข้อง</h2>
           {Array.isArray(relatedEvents) && relatedEvents.some(e => e.name && e.description) ? (
 
-            <div className="grid grid-cols-2 gap-6 mt-4 mb-20">
+            <div className="bg-[#ffffff] rounded-3xl grid grid-cols-2 gap-6 mt-4 mb-20 shadow-xl hover:shadow-2xl transition-shadow">
               {relatedEvents.map((event, idx) => (
                 <Link
                   href={`/eventdetail/${encodeURIComponent(event.name)}`}
@@ -477,25 +463,87 @@ const CampaignDetailPage = () => {
                   className="no-underline"
                 >
                   <div className="border border-gray-300 rounded-xl p-4 hover:shadow-md transition cursor-pointer h-full">
-                    <h3 className="text-[#5D5A88] mb-2">{event.name}</h3>
-                    <p className="text-[#5D5A88]">{event.description}</p>
+                    <h3 className="text-[#34495E] mb-2">{event.name}</h3>
+                    <p className="text-[#34495E]">{event.description}</p>
                   </div>
                 </Link>
               ))}
             </div>
           ) : (
-            <p className="text-[#5D5A88] mb-10">ไม่มีกิจกรรมที่เกี่ยวข้อง</p>
+            <p className="text-[#34495E] mb-10">ไม่มีกิจกรรมที่เกี่ยวข้อง</p>
           )}
 
+        {/* ── การเงิน ── */}
+        <div className="space-y-4">
+                  <h2 className="text-[#2C3E50] font-bold my-10">การเงิน</h2>
+          <section className="relative w-full bg-[#9795B5] rounded-lg overflow-hidden">
+            {/* ตั้ง aspect ratio 16:9 */}
+            <div className="w-full h-0 pb-[56.25%]" />
+            <iframe
+              title="การเงิน"
+              src={
+                "https://app.powerbi.com/reportEmbed?" +
+                "reportId=f8ae1b9b-fa2e-467b-bb5a-a1a46b4f3dd9" +
+                "&autoAuth=true&ctid=0a43deb9-efb0-4f46-8594-71899230fda6" +
+                "&actionBarEnabled=false&filterPaneEnabled=false&navContentPaneEnabled=false&pageView=fitToWidth"
+              }
+              className="absolute inset-0 w-full h-full border-0"
+              allowFullScreen
+            />
+          </section>
+        </div>
+      
 
+    </section>
 
-
-
-
-
-
+</div>
 
         </div>
+    <h2 className="text-[#2C3E50] text-center font-bold my-10">แกลอรี่รูปภาพ</h2>
+        <section className="bg-white py-12">
+  <div className="max-w-6xl mx-auto px-4">
+    
+    <div className="columns-2 sm:columns-3 lg:columns-4 gap-4 space-y-4">
+      {galleryUrls.length > 0 ? (
+        galleryUrls.map((url, idx) => (
+          <div
+            key={idx}
+            className="relative break-inside-avoid mb-4 overflow-hidden rounded-xl shadow-lg group cursor-pointer"
+            onClick={() => setSelectedUrl(url)}
+          >
+            <img
+              src={url}
+              alt={`รูปที่ ${idx + 1}`}
+              className="w-full transition-transform duration-300 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-sm text-white">รูปที่ {idx + 1}</span>
+            </div>
+          </div>
+        ))
+      ) : (
+        <p className="text-center text-gray-500">
+          ไม่มีรูปภาพในแกลเลอรี
+        </p>
+      )}
+    </div>
+  </div>
+
+  {selectedUrl && (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4"
+      onClick={() => setSelectedUrl(null)}
+    >
+      <img
+        src={selectedUrl}
+        alt="ขยายภาพ"
+        className="max-w-full max-h-full rounded-lg shadow-2xl"
+      />
+    </div>
+  )}
+</section>
+
         <Footer />
       </div>
     </div>

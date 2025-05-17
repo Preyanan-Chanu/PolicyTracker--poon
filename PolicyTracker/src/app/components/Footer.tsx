@@ -1,6 +1,6 @@
 const FooterPage = () => {
   return (
-        <footer className="bg-white border-t-2 border-gray-200 shadow-sm mt-[100px] dark:bg-gray-900">
+        <footer className="bg-white border-t-2 border-gray-200 shadow-sm dark:bg-gray-900">
             <div className="flex flex-row justify-between items-center w-full mx-auto p-4 md:py-8">
             <div className="mb-6 md:mb-0">
                     <a href="https://flowbite.com/" className="flex items-center no-underline text-[2rem] w-[300px] hover:underline">

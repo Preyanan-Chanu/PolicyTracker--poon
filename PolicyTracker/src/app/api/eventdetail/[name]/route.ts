@@ -3,9 +3,10 @@ import driver from "@/app/lib/neo4j";
 
 export async function GET(
   req: NextRequest,
-  context: { params: { name: string } }
+  context: { params: Promise<{ name: string }> }
 ) {
-  const name = decodeURIComponent(context.params.name);
+  const { name } = await context.params; // ✅ ต้อง await
+  const decodedName = decodeURIComponent(name);
 
   const session = driver.session();
   try {
@@ -15,12 +16,14 @@ export async function GET(
       OPTIONAL MATCH (e)-[:LOCATED_IN]->(p:Province)
       OPTIONAL MATCH (e)-[:ORGANIZED_BY]->(party:Party)
       OPTIONAL MATCH (e)-[:RELATED_POLICY]->(po:Policy)
-      RETURN e.name AS name,
+      RETURN e.id AS id,
+             e.name AS name,
              e.description AS description,
              e.date AS date,
              e.time AS time,
              e.location AS location,
              e.map AS map,
+             e.status AS status,
              p.name AS province,
              party.name AS party,
              po.name AS relatedPolicyName,
@@ -35,12 +38,14 @@ export async function GET(
 
     const record = result.records[0];
     const data = {
+       id: record.get("id").toNumber(),
       name: record.get("name"),
       description: record.get("description"),
       date: record.get("date"),
       time: record.get("time"),
       location: record.get("location"),
       map: record.get("map"),
+      status: record.get("status"),
       province: record.get("province"),
       party: record.get("party"),
       relatedPolicy: record.get("relatedPolicyName")

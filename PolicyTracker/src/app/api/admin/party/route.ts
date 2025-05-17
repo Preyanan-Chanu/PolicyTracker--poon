@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import driver from "@/app/lib/neo4j";
 import { pool } from "@/app/lib/postgres";
+import neo4j from "neo4j-driver";
 
 export async function GET() {
   const session = driver.session();
@@ -36,10 +37,11 @@ export async function POST(req: NextRequest) {
   try {
     // 🔸 1. INSERT ไปยัง PostgreSQL และรับ id auto-increment
     const result = await client.query(
-      "INSERT INTO public.parties (name) VALUES ($1) RETURNING id",
+      "INSERT INTO public.parties (name) VALUES ($1) RETURNING id::int",
       [name]
     );
-    const id = result.rows[0].id;
+    const idRaw = result.rows[0].id;
+const id = parseInt(idRaw);
 
     // 🔹 2. สร้าง node ใน Neo4j
     await session.run(
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest) {
         link: $link
       })
       `,
-      { id, name, description, link }
+      {  id: neo4j.int(id), name, description, link }
     );
 
     return NextResponse.json({ id }); // ส่ง id กลับไปให้ frontend ใช้อัปโหลดโลโก้

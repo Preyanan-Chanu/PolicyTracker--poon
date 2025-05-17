@@ -8,6 +8,7 @@ import PRSidebar from "../components/PRSidebar";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import {ref, uploadBytes, getDownloadURL, listAll, deleteObject, } from "firebase/storage";
 import { storage } from "@/app/lib/firebase";
+import { useGoogleMapsLoader } from "@/app/lib/googleMapsLoader";
 
 
 const containerStyle = {
@@ -53,16 +54,16 @@ export default function PREventForm() {
   const [eventPictures, setEventPictures] = useState<File[]>([]);
 const [uploadedPictureUrls, setUploadedPictureUrls] = useState<string[]>([]);
 const [picturesToDelete, setPicturesToDelete] = useState<string[]>([]);
+const [bannerFile, setBannerFile] = useState<File | null>(null);
+const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+
+
 
 
 
   const router = useRouter();
 
-  const { isLoaded } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
-    libraries, // ✅ ใช้จาก const เดิม ไม่สร้างใหม่
-  });
+  const { isLoaded } = useGoogleMapsLoader();
   
 
   useEffect(() => {
@@ -116,7 +117,7 @@ const [picturesToDelete, setPicturesToDelete] = useState<string[]>([]);
        console.log("📦 Event province:", data.province);
 
        try {
-  const folderRef = ref(storage, `event/picture/${data.name}`);
+  const folderRef = ref(storage, `event/picture/${eventId}`);
   const listResult = await listAll(folderRef);
   const urls = await Promise.all(listResult.items.map((item) => getDownloadURL(item)));
   setUploadedPictureUrls(urls);
@@ -124,74 +125,100 @@ const [picturesToDelete, setPicturesToDelete] = useState<string[]>([]);
   console.warn("ไม่พบภาพกิจกรรม:", err);
 }
 
+try {
+      const bannerJpg = `event/banner/${eventId}.jpg`;
+const bannerPng = `event/banner/${eventId}.png`;
+
+      try {
+        const jpgUrl = await getDownloadURL(ref(storage, bannerJpg));
+        setBannerPreview(jpgUrl);
+      } catch {
+        const pngUrl = await getDownloadURL(ref(storage, bannerPng));
+        setBannerPreview(pngUrl);
+      }
+    } catch {
+      setBannerPreview(null);
+    }
+
     };
 
     
 
-    fetchEventData();
+      fetchEventData();
   }, [eventId]);
 
 
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-  
-    if (!markerPos || !province) {
-      alert("กรุณาเลือกตำแหน่งและจังหวัด");
-      return;
-    }
-  
-    const payload = {
-      id: eventId, 
-      name: eventName,
-      description: eventDes,
-      date: eventDate,
-      time: eventTime,
-      location: eventLocation,
-      province,
-      map: `${markerPos.lat},${markerPos.lng}`,
-      policy: policyName,
-      party: partyName,
-      campaign: selectedCampaign,
-      status: eventStatus,
-    };
-  
-    console.log("🔧 Event ID ส่งไป:", eventId);
-console.log("📦 payload:", payload);
+  e.preventDefault();
 
-
-    const res = await fetch("/api/prEventForm", {
-      method: eventId ? "PUT" : "POST", // ✅ สร้างใหม่ vs แก้ไข
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    // ✅ ลบรูปภาพที่เลือกไว้
-for (const path of picturesToDelete) {
-  try {
-    const fileRef = ref(storage, path);
-    await deleteObject(fileRef);
-  } catch (err) {
-    console.warn("ลบภาพไม่สำเร็จ:", err);
+  if (!markerPos || !province) {
+    alert("กรุณาเลือกตำแหน่งและจังหวัด");
+    return;
   }
-}
 
-// ✅ อัปโหลดภาพใหม่
-for (const file of eventPictures) {
-  const uniqueName = `${Date.now()}_${file.name}`;
-  const imageRef = ref(storage, `event/picture/${eventName.trim()}/${uniqueName}`);
-  await uploadBytes(imageRef, file);
-}
-
-  
-    if (res.ok) {
-      alert(eventId ? "✅ แก้ไขกิจกรรมสำเร็จ" : "✅ บันทึกกิจกรรมสำเร็จ");
-      router.push("/prEvent");
-    } else {
-      const text = await res.text();
-      alert("❌ บันทึกไม่สำเร็จ: " + text);
-    }
+  const payload = {
+    id: eventId,
+    name: eventName,
+    description: eventDes,
+    date: eventDate,
+    time: eventTime,
+    location: eventLocation,
+    province,
+    map: `${markerPos.lat},${markerPos.lng}`,
+    policy: policyName,
+    party: partyName,
+    campaign: selectedCampaign,
+    status: eventStatus,
   };
+
+  const res = await fetch("/api/prEventForm", {
+    method: eventId ? "PUT" : "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await res.json();
+
+  const id = eventId || result.id; // ใช้ eventId ถ้าแก้ไข, ใช้ result.id ถ้าสร้างใหม่
+  if (!id) {
+    alert("ไม่พบ event ID ไม่สามารถอัปโหลดไฟล์ได้");
+    return;
+  }
+
+  // ✅ อัปโหลด banner
+  if (bannerFile) {
+    const fileExt = bannerFile.name.split(".").pop()?.toLowerCase() === "png" ? "png" : "jpg";
+    const bannerRef = ref(storage, `event/banner/${id}.${fileExt}`);
+    await uploadBytes(bannerRef, bannerFile);
+  }
+
+  // ✅ ลบรูปภาพที่เลือกไว้
+  for (const path of picturesToDelete) {
+    try {
+      const fileRef = ref(storage, path);
+      await deleteObject(fileRef);
+    } catch (err) {
+      console.warn("ลบภาพไม่สำเร็จ:", err);
+    }
+  }
+
+  // ✅ อัปโหลดภาพใหม่
+  for (const file of eventPictures) {
+    const uniqueName = `${Date.now()}_${file.name}`;
+    const imageRef = ref(storage, `event/picture/${id}/${uniqueName}`);
+    await uploadBytes(imageRef, file);
+  }
+
+  if (res.ok) {
+    alert(eventId ? "✅ แก้ไขกิจกรรมสำเร็จ" : "✅ บันทึกกิจกรรมสำเร็จ");
+    router.push("/prEvent");
+  } else {
+    const text = await res.text();
+    alert("❌ บันทึกไม่สำเร็จ: " + text);
+  }
+};
+
   
 
   return (
@@ -328,6 +355,30 @@ for (const file of eventPictures) {
     </div>
   </div>
 )}
+
+
+<div className="mb-4">
+  <label className="block font-bold">อัปโหลด Banner กิจกรรม:</label>
+  <input
+  type="file"
+  accept="image/*"
+  onChange={(e) => {
+    const file = e.target.files?.[0] || null;
+    setBannerFile(file);
+    if (file) setBannerPreview(URL.createObjectURL(file));
+  }}
+  className="mb-4"
+/>
+
+</div>
+
+{bannerPreview && (
+  <div className="mt-2">
+    <p className="text-sm text-[#5D5A88]">Preview:</p>
+    <img src={bannerPreview} alt="Banner Preview" className="h-100 rounded shadow-md" />
+  </div>
+)}
+
 
 
             <button type="submit" className="w-full bg-[#5D5A88] text-white py-2 rounded">บันทึก</button>

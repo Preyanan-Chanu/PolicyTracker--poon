@@ -39,7 +39,7 @@ const PolicyPage = () => {
     
   const fetchPolicies = async () => {
     try {
-      const res = await fetch("/api/policy");
+      const res = await fetch("/api/policycategory");
       const data = await res.json();
       setPolicies(data);
     } catch (err) {

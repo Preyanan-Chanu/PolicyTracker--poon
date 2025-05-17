@@ -24,9 +24,10 @@ export default function PRCampaignPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const storedParty = localStorage.getItem("partyName");
-    setPartyName(storedParty);
-  }, []);
+  const storedParty = localStorage.getItem("partyName");
+  const cleanedParty = storedParty?.replace(/^พรรค\s*/i, "").trim() || null;
+  setPartyName(cleanedParty);
+}, []);
 
   useEffect(() => {
     if (!partyName) return;

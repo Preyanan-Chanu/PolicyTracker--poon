@@ -13,6 +13,8 @@ export default function AdminCreatePartyPage() {
   const [link, setLink] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
 
   useEffect(() => {
     const role = localStorage.getItem("role");
@@ -57,9 +59,10 @@ export default function AdminCreatePartyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#9795B5] text-white p-10">
-      <h1 className="text-3xl font-bold mb-6">➕ เพิ่มพรรคใหม่</h1>
-      <form onSubmit={handleSubmit} className="bg-white text-black p-6 rounded-lg shadow-lg max-w-xl">
+    <div className="min-h-screen bg-[#9795B5] flex items-center justify-center text-white px-4">
+    <div className="max-w-xl w-full">
+      <h1 className="text-3xl font-bold mb-6 text-center">➕ เพิ่มพรรคใหม่</h1>
+      <form onSubmit={handleSubmit} className="bg-white text-black p-6 rounded-lg shadow-lg">
         <div className="mb-4">
           <label className="block font-semibold mb-1">ชื่อพรรค</label>
           <input
@@ -93,13 +96,26 @@ export default function AdminCreatePartyPage() {
         <div className="mb-6">
           <label className="block font-semibold mb-1">โลโก้พรรค (PNG)</label>
           <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
-            className="w-full"
-          />
+  type="file"
+  accept="image/*"
+  onChange={(e) => {
+    const file = e.target.files?.[0] ?? null;
+    setLogoFile(file);
+    if (file) setPreviewUrl(URL.createObjectURL(file)); // สร้าง preview
+  }}
+  className="w-full"
+/>
+
         </div>
 
+        {previewUrl && (
+  <div className="mt-4">
+    <p className="font-semibold mb-1">Preview โลโก้:</p>
+    <img src={previewUrl} alt="Preview" className="h-32 rounded shadow-md mb-4" />
+  </div>
+)}
+
+<div className="flex justify-end">
         <button
           type="submit"
           disabled={submitting}
@@ -107,7 +123,9 @@ export default function AdminCreatePartyPage() {
         >
           {submitting ? "กำลังเพิ่ม..." : "เพิ่มพรรค"}
         </button>
+        </div>
       </form>
     </div>
+  </div>
   );
 }
