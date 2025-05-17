@@ -8,6 +8,16 @@ body {
   @apply font-prompt;
 }
 
+
+/* globals.css */
+.scrollbar-hidden {
+  scrollbar-width: none; /* Firefox */
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+
 @layer base {
   :root {
     --background: 0 0% 100%;

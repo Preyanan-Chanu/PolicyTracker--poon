@@ -4,9 +4,10 @@ import driver from '@/app/lib/neo4j';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { name: string } }
+  context: { params: Promise<{ name: string }> }
 ) {
-  const name = decodeURIComponent(params.name); // ✅ ปลอดภัยและไม่มี warning
+  const { name } = await context.params; // ✅ ต้อง await
+  const decodedName = decodeURIComponent(name);
 
 
 

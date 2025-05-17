@@ -248,7 +248,7 @@ const handlePartyChange = (party: string) => {
             const logoUrl = `https://firebasestorage.googleapis.com/v0/b/policy-tracker-kp.firebasestorage.app/o/party%2Flogo%2F${encodedPartyName}.png?alt=media`;
 
             return (
-              <div key={idx} className="bg-white rounded-xl p-4 shadow-lg relative flex flex-col justify-between h-full">
+              <div key={idx} className="bg-white rounded-xl p-4 shadow-lg relative flex flex-col justify-between min-h-[380px] h-full">
                 <div>
                   <img
                     src={logoUrl}
@@ -261,9 +261,11 @@ const handlePartyChange = (party: string) => {
 
                   <h3 className="font-bold text-xl mb-2">{policy.policyName}</h3>
                   <br></br>
-                  <p className="mb-2">{policy.description}</p>
+                  <p className="mb-2 break-words whitespace-normal max-h-[6rem] overflow-hidden text-ellipsis">
+  {policy.description}
+</p>
                   
-                  <div className="grid grid-cols-2 gap-2 mt-6">
+                  <div className="grid grid-cols-2 gap-2 mt-6 text-sm">
                     <p><strong>พรรค:</strong> {policy.partyName}</p>
                     <p><strong>งบประมาณ:</strong> {policy.budget}</p>
                     <p><strong>หมวดหมู่:</strong> {policy.categoryName}</p>
@@ -271,9 +273,9 @@ const handlePartyChange = (party: string) => {
                   </div>
                 </div>
 
-                <div className="text-right mt-4">
+                <div className="text-right mt-6">
                   <button
-                    onClick={() => router.push(`/page/policydetail?name=${encodeURIComponent(policy.policyName)}`)}
+                    onClick={() => router.push(`/policydetail/${encodeURIComponent(policy.policyName)}`)}
                     className="text-[#5D5A88] hover:underline"
                   >
                     ดูเพิ่มเติม →

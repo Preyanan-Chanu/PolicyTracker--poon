@@ -1,7 +1,8 @@
-.button {
-    background-color: blue;
-    color: azure;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;             /* Chrome, Safari */
 }

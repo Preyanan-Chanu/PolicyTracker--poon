@@ -11,24 +11,31 @@ export async function GET(
     return NextResponse.json({ error: 'Missing name param' }, { status: 400 });
   }
 
-
+ const decodedName = decodeURIComponent(name);
   const session = driver.session();
 
   try {
     const result = await session.run(
-      `
-    MATCH (p:Policy {name: $name})
-    OPTIONAL MATCH (c:Campaign)-[:PART_OF]->(p)
-    WITH p, collect({ name: c.name, description: c.description }) AS relatedProjects
-    RETURN {
-      name: p.name,
-      description: p.description,
-      status: p.status,
-      relatedProjects: relatedProjects
-    } AS policy
-    `,
-  { name }
+  `
+  MATCH (p:Policy {name: $name})
+  OPTIONAL MATCH (c:Campaign)-[:PART_OF]->(p)
+  OPTIONAL MATCH (p)-[:BELONGS_TO]->(party:Party)
+  WITH p, collect({ name: c.name, description: c.description }) AS relatedProjects, party
+  RETURN {
+    name: p.name,
+    description: p.description,
+    status: p.status,
+    relatedProjects: relatedProjects,
+    party: CASE WHEN party IS NOT NULL THEN {
+      name: party.name,
+      description: party.description,
+      link: party.link
+    } ELSE null END
+  } AS policy
+  `,
+  { name: decodedName }
 );
+
 
     if (result.records.length === 0) {
       return NextResponse.json({ error: "ไม่พบข้อมูลนโยบาย" }, { status: 404 });

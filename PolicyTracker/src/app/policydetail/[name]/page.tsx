@@ -1,20 +1,18 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
 import { firestore } from "@/app/lib/firebase";
-
 import Step from "@/app/components/step";
 import { useRouter } from "next/navigation";
 import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
 import { Heart } from "lucide-react";
 import { ArrowLeft } from "lucide-react";
-
-// Firebase Storage imports พร้อม types
 import { storage } from "@/app/lib/firebase";
 import { ref, listAll, getDownloadURL } from "firebase/storage";
+
 interface TimelineItem {
   date: string;
   name: string;
@@ -57,6 +55,8 @@ const PolicyDetailPage = () => {
   }>({});
   const [status, setStatus] = useState<number | null>(null); // เก็บสถานะจาก Neo4j
   const [showAllTimeline, setShowAllTimeline] = useState(false);
+  
+  const scrollRef = useRef<HTMLDivElement>(null);
   const stepMap: Record<string, { label: string; color: string; step: number }> = {
     "เริ่มนโยบาย": { label: "เริ่มนโยบาย", color: "#DF4F4D", step: 1 },
     "วางแผน": { label: "วางแผน", color: "#F29345", step: 2 },
@@ -71,6 +71,45 @@ const PolicyDetailPage = () => {
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   // เตรียม state สำหรับ Lightbox (URL ที่ถูกคลิก)
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
+
+  const scrollLeft = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: -300, behavior: "smooth" });
+    }
+  };
+  
+const scrollRight = () => {
+  if (scrollRef.current) {
+    scrollRef.current.scrollBy({ left: 300, behavior: "smooth" });
+  }
+};
+
+
+
+
+useEffect(() => {
+  const container = scrollRef.current;
+  if (!container) return;
+
+  const onWheel = (e: WheelEvent) => {
+    // เช็คว่าเป็นการ scroll แนวตั้งหรือไม่
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      e.preventDefault();
+      container.scrollLeft += e.deltaY;
+    }
+  };
+
+  // ใช้ { passive: false } เพื่อให้สามารถเรียก preventDefault() ได้
+  container.addEventListener('wheel', onWheel, { passive: false });
+  
+  // Clean up the event listener when the component unmounts
+  return () => {
+    container.removeEventListener('wheel', onWheel);
+  };
+}, [scrollRef.current]);
+
+
+
 
 
   useEffect(() => {
@@ -359,85 +398,127 @@ const PolicyDetailPage = () => {
 
 
 {/* ── Banner Section ── */}
-<div className="relative w-full h-[25svh] overflow-hidden">
-  {/* 1. ภาพพื้นหลัง จางด้วย brightness */}
+<div className="relative w-full h-[35svh] overflow-hidden bg-[#5D5A88]">
+  {/* Banner Image */}
   <img
     src={bannerUrl}
     alt="Banner"
-    className="absolute inset-0 w-full h-full object-cover filter brightness-50 opacity-80"
+    className="absolute inset-0 w-full h-full object-cover brightness-75"
   />
-  {/* 2. Overlay เบา ๆ (ถ้าไม่ต้องการให้มืดลงมาก) */}
-  {/* <div className="absolute inset-0 bg-black bg-opacity-10"></div> */}
 
-  {/* 3. ข้อความชิดซ้าย */}
-  <div className="relative z-10 flex flex-col justify-center items-start h-full px-10">
+  {/* Logo พรรคขวาบน */}
+  {party && (
+    <img
+      src={`https://firebasestorage.googleapis.com/v0/b/policy-tracker-kp.firebasestorage.app/o/party%2Flogo%2F${encodeURIComponent(party.name)}.png?alt=media`}
+      alt="โลโก้พรรค"
+      className="absolute top-4 right-6 w-[60px] h-[60px] object-contain z-20"
+      onError={(e) => {
+        (e.target as HTMLImageElement).src = "/default-logo.png";
+      }}
+    />
+  )}
+
+  {/* Content กลางซ้าย */}
+  <div className="relative z-10 flex flex-col justify-center items-start h-full px-10 text-white max-w-4xl">
     {party ? (
       <>
-        <h1 className="text-white font-bold text-[2rem] mb-2 text-left">
-          นโยบายจากพรรค{party.name}
-        </h1>
-        <p className="text-white text-[1rem] mb-4 text-left max-w-2xl">
+        <h2 className="text-2xl md:text-3xl font-bold mb-2">
+          นโยบายจากพรรค {party.name}
+        </h2>
+        <p className="text-md md:text-base mb-4 leading-relaxed max-w-2xl">
           {party.description}
         </p>
-        {party && (
-          <Link
-            href={`/party/${encodeURIComponent(party.name)}`}
-            className="self-start rounded-md bg-[#1b4269] px-6 py-2 text-white hover:bg-[#204973]"
-          >
-            อ่านเพิ่มเติมเกี่ยวกับพรรค
-          </Link>
-        )}
+        <Link
+          href={`/party/${encodeURIComponent(party.name)}`}
+          className="bg-white text-[#5D5A88] px-6 py-2 rounded-md font-semibold hover:bg-gray-100"
+        >
+          อ่านเพิ่มเติมเกี่ยวกับพรรค
+        </Link>
       </>
     ) : (
       <>
-        <h1 className="text-white font-bold text-[2.5rem] mb-2 text-left">
-          {policyName}
-        </h1>
-        <p className="text-white text-[1.5rem] text-left max-w-2xl">
-          {description}
-        </p>
+        {/* fallback ถ้าไม่มีข้อมูลพรรค */}
+        <h2 className="text-2xl font-bold mb-2">{policyName}</h2>
+        <p className="text-sm">{description}</p>
       </>
     )}
   </div>
 </div>
 
-
-
-
       <div className="w-5/6 mx-auto">
         <h2 className="text-[#2C3E50]]  font-bold my-10">ลำดับเหตุการณ์</h2>
         {/* ✅ สร้าง State เพื่อดูว่าจะแสดงทั้งหมดไหม */}
-{timeline.length > 0 && (
-  <>
-    <ol className="items-center sm:flex bg-white mb-0 flex-wrap">
-      {(showAllTimeline ? timeline : timeline.slice(0, 4)).map((item, idx) => (
-        <li key={idx} className="relative mb-6 sm:mb-0 w-full sm:w-auto">
-          <div className="flex items-center">
-            <div className="z-10 flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full"></div>
-            <div className="hidden sm:flex w-full bg-gray-200 h-0.5"></div>
-          </div>
-          <div className="mt-3 sm:pe-8">
-            <h3 className="text-lg font-semibold text-gray-900">{item.name}</h3>
-            <time className="block mb-2 text-sm text-gray-400">{item.date}</time>
-            <p className="text-base text-gray-500">{item.description}</p>
-          </div>
-        </li>
-      ))}
-    </ol>
+{timeline.length > 0 ? (
+    <>
+      {!showAllTimeline ? (
+  <div className="relative">
+       <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#e2edfe] to-transparent z-10 pointer-events-none" />
 
-    {/* ✅ ปุ่มดูเพิ่มเติม */}
-    {timeline.length > 4 && (
-      <div className="text-center mt-4">
+         <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#e2edfe] to-transparent z-10 pointer-events-none" />
+
+
+    {/* ✅ แถบ timeline scroll ได้ */}
+    <div
+  ref={scrollRef}
+    className="flex gap-4 overflow-x-auto overflow-y-hidden px-2 py-4 scrollbar-hide relative z-0"
+  style={{
+    scrollbarWidth: "none",      // Firefox
+    msOverflowStyle: "none",     // IE
+    overflowY: "hidden",         // force again
+    WebkitOverflowScrolling: "touch",
+    
+    
+  }}
+  onWheel={(e) => {
+    // ดักจับ wheel event ในระดับ JSX แทนที่จะใช้ useEffect
+    if (e.deltaY !== 0) {
+      e.preventDefault();
+      e.currentTarget.scrollLeft += e.deltaY;
+    }
+  }}
+>
+  {timeline.map((item, idx) => (
+    <div
+      key={idx}
+      className="min-w-[220px] max-w-[400px] bg-white border border-gray-200 rounded-lg px-4 py-3 flex-shrink-0 shadow hover:shadow-md transition relative"
+    >
+      <div className="w-3 h-3 bg-[#5D5A88] rounded-full absolute -left-1 top-4 border-2 border-white"></div>
+      <h3 className="text-md font-bold text-[#5D5A88] mb-1">{item.name}</h3>
+      <p className="text-sm text-gray-500 mb-2">{item.date}</p>
+      <p className="text-sm text-gray-600">{item.description}</p>
+    </div>
+  ))}
+</div>
+  </div>
+) : (
+        <div className="relative border-l-4 border-[#5D5A88] pl-6 mt-4 space-y-6">
+          {timeline.map((item, idx) => (
+            <div key={idx} className="relative">
+              {/* จุดกลม */}
+              <div className="absolute -left-[14px] top-1 w-3 h-3 bg-[#5D5A88] rounded-full border-2 border-white"></div>
+              <div className="bg-white p-4 rounded-md shadow-md">
+                <h3 className="text-md font-bold text-[#5D5A88]">{item.name}</h3>
+                <p className="text-sm text-gray-400">{item.date}</p>
+                <p className="text-sm text-gray-600">{item.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ปุ่ม toggle */}
+      <div className="text-center mt-6">
         <button
-          className="px-4 py-2 bg-[#5D5A88] text-white rounded-md"
-          onClick={() => setShowAllTimeline(!showAllTimeline)}
+          onClick={() => setShowAllTimeline((prev) => !prev)}
+          className="bg-[#5D5A88] text-white px-5 py-2 rounded-md font-semibold hover:bg-[#47457b]"
         >
-          {showAllTimeline ? "แสดงน้อยลง" : "ดูเพิ่มเติม"}
+          {showAllTimeline ? "ดูแบบสไลด์" : "ดูทั้งหมด"}
         </button>
       </div>
-    )}
-  </>
-)}
+    </>
+  ) : (
+    <p className="text-gray-500 text-center">ไม่มีเหตุการณ์ในนโยบายนี้</p>
+  )}
 
         <h2 className="text-[#2C3E50]]  font-bold my-10">ความสำเร็จ</h2>
         <div className="flex justify-center h-[300px]">
@@ -460,30 +541,31 @@ const PolicyDetailPage = () => {
 
 <h2 className="text-[#2C3E50] font-bold my-10">โครงการที่เกี่ยวข้อง</h2>
 
-{relatedProjects.length > 0 ? (
-  // ── กรณีมีรายการ ──
+{relatedProjects.filter(p => p.name?.trim()).length > 0 ? (
   <div className="grid grid-cols-2 gap-6 mt-4 mb-20">
-    {relatedProjects.map((project) => (
-      <Link
-        key={project.name}
-        href={`/campaigndetail/${encodeURIComponent(project.name)}`}
-        className="no-underline"
-      >
-        <div className="border border-gray-300 bg-white rounded-xl p-4 hover:shadow-md transition cursor-pointer h-full">
-          <h3 className="text-[#2C3E50] mb-2">{project.name}</h3>
-          <p className="text-[#2C3E50]">{project.description}</p>
-        </div>
-      </Link>
-    ))}
+    {relatedProjects
+      .filter((project) => project.name?.trim()) // ✅ กรอง name ที่ว่าง/null
+      .map((project) => (
+        <Link
+          key={project.name}
+          href={`/campaigndetail/${encodeURIComponent(project.name)}`}
+          className="no-underline"
+        >
+          <div className="border border-gray-300 bg-white rounded-xl p-4 hover:shadow-md transition cursor-pointer h-full">
+            <h3 className="text-[#2C3E50] mb-2">{project.name}</h3>
+            <p className="text-[#2C3E50]">{project.description}</p>
+          </div>
+        </Link>
+      ))}
   </div>
 ) : (
-  // ── กรณีไม่มีรายการ ──
   <div className="mb-20">
     <p className="text-[#2C3E50] text-center py-10">
       ไม่มีโครงการที่เกี่ยวข้อง
     </p>
   </div>
 )}
+
 
         
       </div>

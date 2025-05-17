@@ -15,14 +15,21 @@ interface Member {
 }
 
 const PartyPage = () => {
-  const params = useParams();
-  const name = decodeURIComponent(params.name as string);
+  const [isClient, setIsClient] = useState(false);
+  
 
   const [description, setDescription] = useState("");
   const [link, setLink] = useState("");
   const [logo, setLogo] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [leader, setLeader] = useState<Member | null>(null);
+  
+const params = useParams();
+  const name = decodeURIComponent(params.name as string);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // ดึงข้อมูลพรรคจาก Neo4j
   useEffect(() => {
@@ -59,7 +66,9 @@ const PartyPage = () => {
         snapshot.docs.map(async (doc) => {
           const data = doc.data();
           const firstName: string = data.FirstName || "ไม่ระบุชื่อ";
-          const lastName: string = data.LastName || "ไม่ระบุนามสกุล";
+        const lastName: string = data.LastName || "ไม่ระบุนามสกุล";
+        const role: string = data.Role || "ไม่ระบุตำแหน่ง";
+        const memberId = doc.id;
     
           // แยกคำนำหน้า ถ้ามีมากกว่า 1 คำ ถือว่ามีคำนำหน้า
           const nameParts = firstName.trim().split(" ");
@@ -75,7 +84,7 @@ const PartyPage = () => {
             fullName = `${firstName}_${lastName}`;
           }
     
-          const basePath = `party/member/${name}/${fullName}`;
+          const basePath = `party/member/${name}/${doc.id}`;
           let imageUrl = "/default-profile.png";
     
           try {
@@ -89,14 +98,14 @@ const PartyPage = () => {
               }
             }
           } catch (err) {
-            console.warn(`⚠️ ไม่พบรูปสมาชิก: ${fullName}`);
+            console.warn(`⚠️ ไม่พบรูปสมาชิก: ${memberId}`);
           }
     
           return {
-            id: doc.id,
+            id: memberId,
             FirstName: firstName,
             LastName: lastName,
-            Role: data.Role || "ไม่ระบุตำแหน่ง",
+            Role: role,
             Picture: imageUrl,
           };
         })
@@ -118,6 +127,8 @@ const PartyPage = () => {
     <div className="">
       <Navbar />
       <div className="font-prompt">
+         {isClient ? (
+          <>
         <div className="flex flex-row bg-[#9795B5] mb-10">
           <div className="grid grid-rows-3 p-12 w-2/3">
             <div className="flex gap-20 items-center mb-10">
@@ -210,6 +221,10 @@ const PartyPage = () => {
             )}
           </div>
         </div>
+        </>
+        ) : (
+          <div className="text-center py-20">กำลังโหลดข้อมูล...</div>
+        )}
         <Footer />
       </div>
     </div>
