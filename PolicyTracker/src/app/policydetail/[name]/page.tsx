@@ -401,7 +401,7 @@ useEffect(() => {
 <div className="relative w-full h-[35svh] overflow-hidden bg-[#5D5A88]">
   {/* Banner Image */}
   <img
-    src={bannerUrl}
+    src={bannerUrl || "/default-banner.jpg"}
     alt="Banner"
     className="absolute inset-0 w-full h-full object-cover brightness-75"
   />

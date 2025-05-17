@@ -411,24 +411,24 @@ useEffect(() => {
          
 
           <h2 className="text-[#2C3E50]  font-bold my-10">โครงการที่เกี่ยวข้อง</h2>
-          {relatedProjects.length > 0 ? (
-            <div className="bg-[#ffffff] rounded-3xl grid  grid-cols-1 gap-10 mt-4 mb-20 shadow-xl hover:shadow-2xl transition-shadow">
-              {relatedProjects.map((project, idx) => (
-                <Link
-                  href={`/campaigndetail/${encodeURIComponent(project.name)}`}
-                  key={project.name || idx} // ใช้ name ถ้ามี หรือ fallback เป็น index
-                  className="no-underline"
-                >
-                  <div className="w-full border border-gray-300 rounded-xl p-4 hover:shadow-md transition cursor-pointer h-full">
-                    <h3 className="text-[#34495E] mb-2">{project.name}</h3>
-                    <p className="text-[#34495E]">{project.description}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[#34495E] mb-10">ไม่มีโครงการที่เกี่ยวข้อง</p>
-          )}
+{relatedProjects.filter(p => p.name?.trim()).length > 0 ? (
+  <div className="bg-[#ffffff] rounded-3xl grid grid-cols-1 gap-10 mt-4 mb-20 shadow-xl hover:shadow-2xl transition-shadow">
+    {relatedProjects.map((project, idx) => (
+      <Link
+        href={`/campaigndetail/${encodeURIComponent(project.name)}`}
+        key={project.name || idx}
+        className="no-underline"
+      >
+        <div className="w-full border border-gray-300 rounded-xl p-4 hover:shadow-md transition cursor-pointer h-full">
+          <h3 className="text-[#34495E] mb-2">{project.name}</h3>
+          <p className="text-[#34495E]">{project.description}</p>
+        </div>
+      </Link>
+    ))}
+  </div>
+) : (
+  <p className="text-[#34495E] mb-10">ไม่มีโครงการที่เกี่ยวข้อง</p>
+)}
 
           {/* ── นโยบายที่เกี่ยวข้อง ── */}
           <h2 className="text-[#2C3E50] font-bold my-10">นโยบายที่เกี่ยวข้อง</h2>

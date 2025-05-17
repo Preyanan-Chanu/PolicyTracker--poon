@@ -5,10 +5,10 @@ import { storage } from '@/app/lib/firebase'
 import { ref, getDownloadURL } from 'firebase/storage'
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { name?: string } }
+  req: NextRequest,
+  context: { params: { name?: string } }
 ) {
-  const name = params.name
+  const { name } = await context.params
   if (!name) {
     return NextResponse.json({ error: 'Missing name param' }, { status: 400 })
   }
