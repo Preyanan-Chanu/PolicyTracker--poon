@@ -124,7 +124,7 @@ export default function PRCampaignPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-6">
             {campaigns.length > 0 ? (
               campaigns.map((campaign, index) => (
-                <div key={campaign.id ?? `fallback-${index}`} className="bg-white p-4 rounded-lg shadow-lg flex flex-col justify-between">
+                <div key={`${campaign.id}-${index}`} className="bg-white p-4 rounded-lg shadow-lg flex flex-col justify-between">
                   <div className="h-full">
                   <p className="text-sm text-gray-500 mb-1">ID: {campaign.id}</p>
                   <h3 className="text-lg font-semibold">{campaign.name}</h3>

@@ -215,7 +215,7 @@ const CampaignDetailPage = () => {
   const handleLike = async () => {
     const action = isLiked ? "decrement" : "increment";
     try {
-      const res = await fetch("/api/policylike", {
+      const res = await fetch("/api/campaignlike", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: policyName, action }),
@@ -403,102 +403,100 @@ useEffect(() => {
         </div>
 
 
-<div className=" bg-[#e2edfe] relative z-10 flex flex-col justify-center items-start h-full px-14 sm:px-16 lg:px-20 ">
+<div className="bg-[#e2edfe] relative z-10 flex flex-col items-center h-full px-6 sm:px-10 lg:px-16 xl:px-24 py-16">
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 w-full max-w-7xl">
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 my-12 ">
-        <section>
-              
-         
+    {/* 🔹 ซ้าย: โครงการ + นโยบาย + กิจกรรม */}
+    <div className="space-y-10 col-span-1">
 
-          <h2 className="text-[#2C3E50]  font-bold my-10">โครงการที่เกี่ยวข้อง</h2>
-{relatedProjects.filter(p => p.name?.trim()).length > 0 ? (
-  <div className="bg-[#ffffff] rounded-3xl grid grid-cols-1 gap-10 mt-4 mb-20 shadow-xl hover:shadow-2xl transition-shadow">
-    {relatedProjects.map((project, idx) => (
-      <Link
-        href={`/campaigndetail/${encodeURIComponent(project.name)}`}
-        key={project.name || idx}
-        className="no-underline"
-      >
-        <div className="w-full border border-gray-300 rounded-xl p-4 hover:shadow-md transition cursor-pointer h-full">
-          <h3 className="text-[#34495E] mb-2">{project.name}</h3>
-          <p className="text-[#34495E]">{project.description}</p>
-        </div>
-      </Link>
-    ))}
-  </div>
-) : (
-  <p className="text-[#34495E] mb-10">ไม่มีโครงการที่เกี่ยวข้อง</p>
-)}
+      {/* 📁 โครงการ */}
+<section>
+  <h2 className="text-xl font-bold text-[#2C3E50] mb-4">📁 โครงการที่เกี่ยวข้อง</h2>
+  {relatedProjects.filter(p => p.name?.trim()).length > 0 ? (
+    <div className="space-y-4">
+      {relatedProjects
+        .filter(p => p.name?.trim())
+        .map((project, idx) => (
+          <Link
+            href={`/campaigndetail/${encodeURIComponent(project.name)}`}
+            key={project.name || idx}
+            className="block bg-white rounded-xl shadow-md hover:shadow-lg transition p-4 border border-gray-200"
+          >
+            <h3 className="font-semibold text-[#5D5A88] text-lg mb-1">{project.name}</h3>
+            <p className="text-gray-700">{project.description}</p>
+          </Link>
+        ))}
+    </div>
+  ) : (
+    <p className="text-gray-500">ไม่มีโครงการที่เกี่ยวข้อง</p> // ✅ แสดงข้อความแทน
+  )}
+</section>
 
-          {/* ── นโยบายที่เกี่ยวข้อง ── */}
-          <h2 className="text-[#2C3E50] font-bold my-10">นโยบายที่เกี่ยวข้อง</h2>
-          {policy ? (
-            <div className="bg-[#ffffff] rounded-3xl grid grid-cols-1 gap-10 mt-4 mb-20 shadow-xl hover:shadow-2xl transition-shadow">
-              <Link
-                href={`/policydetail/${encodeURIComponent(policy.name)}`}
-                key={policy.name}
-                className="no-underline"
-              >
-                <div className="border border-gray-300 rounded-xl p-4 hover:shadow-md transition cursor-pointer h-full">
-                  <h3 className="text-[#34495E] mb-2">{policy.name}</h3>
-                  <p className="text-[#34495E]">{policy.description}</p>
-                </div>
-              </Link>
-            </div>
-          ) : (
-            <p className="text-[#34495E] mb-10">ไม่มีนโยบายที่เกี่ยวข้อง</p>
-          )}
-  </section>
 
-  <section>
-          {/* ── กิจกรรมที่เกี่ยวข้อง ── */}
-          <h2 className="text-[#2C3E50] font-bold my-10">กิจกรรมที่เกี่ยวข้อง</h2>
-          {Array.isArray(relatedEvents) && relatedEvents.some(e => e.name && e.description) ? (
-
-            <div className="bg-[#ffffff] rounded-3xl grid grid-cols-2 gap-6 mt-4 mb-20 shadow-xl hover:shadow-2xl transition-shadow">
-              {relatedEvents.map((event, idx) => (
-                <Link
-                  href={`/eventdetail/${encodeURIComponent(event.name)}`}
-                  key={event.name || idx}
-                  className="no-underline"
-                >
-                  <div className="border border-gray-300 rounded-xl p-4 hover:shadow-md transition cursor-pointer h-full">
-                    <h3 className="text-[#34495E] mb-2">{event.name}</h3>
-                    <p className="text-[#34495E]">{event.description}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[#34495E] mb-10">ไม่มีกิจกรรมที่เกี่ยวข้อง</p>
-          )}
-
-        {/* ── การเงิน ── */}
-        <div className="space-y-4">
-                  <h2 className="text-[#2C3E50] font-bold my-10">การเงิน</h2>
-          <section className="relative w-full bg-[#9795B5] rounded-lg overflow-hidden">
-            {/* ตั้ง aspect ratio 16:9 */}
-            <div className="w-full h-0 pb-[56.25%]" />
-            <iframe
-              title="การเงิน"
-              src={
-                "https://app.powerbi.com/reportEmbed?" +
-                "reportId=f8ae1b9b-fa2e-467b-bb5a-a1a46b4f3dd9" +
-                "&autoAuth=true&ctid=0a43deb9-efb0-4f46-8594-71899230fda6" +
-                "&actionBarEnabled=false&filterPaneEnabled=false&navContentPaneEnabled=false&pageView=fitToWidth"
-              }
-              className="absolute inset-0 w-full h-full border-0"
-              allowFullScreen
-            />
-          </section>
-        </div>
       
 
-    </section>
+      {/* 📌 นโยบาย */}
+      <section>
+        <h2 className="text-xl font-bold text-[#2C3E50] mb-4">📌 นโยบายที่เกี่ยวข้อง</h2>
+        {policy ? (
+          <Link
+            href={`/policydetail/${encodeURIComponent(policy.name)}`}
+            className="block bg-white rounded-xl shadow-md hover:shadow-xl transition p-4 border border-gray-200"
+          >
+            <h3 className="font-semibold text-[#5D5A88] text-lg mb-1">{policy.name}</h3>
+            <p className="text-gray-600">{policy.description}</p>
+          </Link>
+        ) : (
+          <p className="text-gray-500">ไม่มีนโยบายที่เกี่ยวข้อง</p>
+        )}
+      </section>
 
+      {/* 📅 กิจกรรม */}
+      <section>
+        <h2 className="text-xl font-bold text-[#2C3E50] mb-4">📅 กิจกรรมที่เกี่ยวข้อง</h2>
+        {Array.isArray(relatedEvents) && relatedEvents.some(e => e.name && e.description) ? (
+          <div className="space-y-4">
+            {relatedEvents.map((event, idx) => (
+              <Link
+                href={`/eventdetail/${encodeURIComponent(event.name)}`}
+                key={event.name || idx}
+                className="block bg-white rounded-xl shadow-md hover:shadow-xl transition p-4 border border-gray-200"
+              >
+                <h3 className="font-semibold text-[#5D5A88] text-lg mb-1">{event.name}</h3>
+                <p className="text-gray-600">{event.description}</p>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">ไม่มีกิจกรรมที่เกี่ยวข้อง</p>
+        )}
+      </section>
+    </div>
+
+    {/* 💸 ขวา: การเงิน */}
+    <div className="col-span-1">
+      <section>
+        <h2 className="text-xl font-bold text-[#2C3E50] mb-4">💸 การเงิน</h2>
+        <div className="relative rounded-xl overflow-hidden shadow-md border border-gray-200 bg-white">
+          <div className="w-full h-0 pb-[56.25%]" />
+          <iframe
+            title="การเงิน"
+            src={
+              "https://app.powerbi.com/reportEmbed?" +
+              "reportId=f8ae1b9b-fa2e-467b-bb5a-a1a46b4f3dd9" +
+              "&autoAuth=true&ctid=0a43deb9-efb0-4f46-8594-71899230fda6" +
+              "&actionBarEnabled=false&filterPaneEnabled=false&navContentPaneEnabled=false&pageView=fitToWidth"
+            }
+            className="absolute inset-0 w-full h-full border-0"
+            allowFullScreen
+          />
+        </div>
+      </section>
+    </div>
+  </div>
 </div>
 
-        </div>
+
     <h2 className="text-[#2C3E50] text-center font-bold my-10">แกลอรี่รูปภาพ</h2>
         <section className="bg-white py-12">
   <div className="max-w-6xl mx-auto px-4">

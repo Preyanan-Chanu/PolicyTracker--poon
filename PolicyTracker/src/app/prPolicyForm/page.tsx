@@ -167,6 +167,14 @@ export default function PRPolicyForm() {
     fetchTimeline();
   }, [policyName]);
 
+useEffect(() => {
+  if (policyBanner) {
+    const objectUrl = URL.createObjectURL(policyBanner);
+    setBannerPreviewUrl(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl); // cleanup
+  }
+}, [policyBanner]);
 
 
   useEffect(() => {

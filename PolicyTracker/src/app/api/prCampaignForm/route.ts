@@ -13,6 +13,8 @@ export async function OPTIONS() {
   });
 }
 
+
+
 export async function POST(req: NextRequest) {
   const {
     name,
@@ -47,24 +49,27 @@ const client = await pg.connect();
       "ประเมินผล": 100,
     };
     const progress = progressMap[status];
+    const isSpecial = policy.trim() === "โครงการพิเศษ";
+const fullPolicyName = isSpecial ? `${policy} ${partyName}` : policy;
+
 
     // ✅ 1. สร้าง policy node ถ้ายังไม่มีใน Neo4j
     await session.run(
-      `MERGE (p:Policy {name: $policy})
-       ON CREATE SET 
-         p.description = "โครงการพิเศษที่ไม่ได้ระบุนโยบายในระบบ",
-         p.status = "เริ่มนโยบาย",
-         p.like = 0`,
-      { policy }
+  `MATCH (party:Party {name: $party})
+   MERGE (p:Policy {name: $fullPolicyName})-[:BELONGS_TO]->(party)
+   ON CREATE SET p.description = "โครงการพิเศษที่ไม่ได้ระบุนโยบายในระบบ",
+                 p.status = "เริ่มนโยบาย",
+                 p.like = 0`,
+  { fullPolicyName, party: partyName }
     );
 
     // ✅ 2. เชื่อม policy กับพรรคใน Neo4j
     if (partyName) {
       await session.run(
-        `MATCH (p:Policy {name: $policy})
+        `MERGE (p:Policy {name: $fullPolicyName})
          MERGE (party:Party {name: $party})
          MERGE (p)-[:BELONGS_TO]->(party)`,
-        { policy, party: partyName }
+        { fullPolicyName, party: partyName }
       );
     }
 
@@ -78,11 +83,11 @@ const client = await pg.connect();
       `INSERT INTO policies (name, total_budget, created_at, party_id)
        VALUES ($1, 0, NOW(), $2)
        ON CONFLICT (name) DO NOTHING`,
-      [policy, partyId]
+      [fullPolicyName, partyId]
     );
 
     // ✅ 5. ดึง policy_id มาใช้
-    const checkPolicy = await client.query(`SELECT id FROM policies WHERE name = $1`, [policy]);
+    const checkPolicy = await client.query(`SELECT id FROM policies WHERE name = $1`, [fullPolicyName]);
     if (checkPolicy.rows.length === 0) {
       throw new Error("❌ ไม่พบ policy ใน PostgreSQL");
     }
@@ -103,19 +108,19 @@ const client = await pg.connect();
 
     // ✅ 7. บันทึกลง Neo4j
     await session.run(
-      `MERGE (c:Campaign {id: toInteger($id)})
-       SET c.name = $name,
-           c.description = $description,
-           c.status = $status,
-           c.progress = toInteger($progress),
-           c.banner = $banner,
-           c.area = $area,
-           c.impact = $impact,
-           c.size = $size
-       WITH c
-       MATCH (p:Policy {name: $policy})
-       MERGE (c)-[:PART_OF]->(p)`,
-      { id: Number(campaign_id), name, description, status, progress, banner, policy, area, impact, size }
+  `MERGE (c:Campaign {id: toInteger($id)})
+   SET c.name = $name,
+       c.description = $description,
+       c.status = $status,
+       c.progress = toInteger($progress),
+       c.banner = $banner,
+       c.area = $area,
+       c.impact = $impact,
+       c.size = $size
+   WITH c
+   MATCH (p:Policy {name: $fullPolicyName})-[:BELONGS_TO]->(:Party {name: $party})
+   MERGE (c)-[:PART_OF]->(p)`,
+      { id: Number(campaign_id), name, description, status, progress, banner, fullPolicyName, area, impact, size, party: partyName }
     );
 
     // ✅ 8. บันทึกรายจ่าย

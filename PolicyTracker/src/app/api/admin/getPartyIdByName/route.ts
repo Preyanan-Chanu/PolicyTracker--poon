@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       { name }
     );
     const id = result.records[0]?.get("id")?.toNumber?.() || null;
-    return NextResponse.json({ id });
+    return NextResponse.json({ partyId: id }); 
   } catch (err) {
     return NextResponse.json({ error: "Failed to fetch id" }, { status: 500 });
   } finally {

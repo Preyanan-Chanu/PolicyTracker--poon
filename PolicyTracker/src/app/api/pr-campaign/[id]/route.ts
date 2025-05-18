@@ -146,6 +146,7 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
     description,
     status,
     policy,
+    party,
     budget,
     expenses,
     banner,
@@ -167,6 +168,7 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
       "ประเมินผล": 100,
     };
     const progress = progressMap[status] ?? 0;
+    const fullPolicyName = `${policy} ${party}`;
 
     // ✅ UPDATE Neo4j: ใช้ id property
     await session.run(
@@ -186,7 +188,7 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
            c.impact = $impact,
            c.size = $size
       `,
-      { id: idNumber, name, description, status, progress, banner, policy, area, impact, size }
+      { id: idNumber, name, description, status, progress, banner, policy: fullPolicyName, area, impact, size }
     );
 
     console.log("✅ Neo4j campaign updated");
