@@ -31,7 +31,11 @@ const PartiesPage = () => {
   }, []);
 
   return (
-    <div className="font-prompt bg-gradient-to-r from-[#0f0c29] via-[#302b63] to-[#24243e] min-h-screen flex flex-col text-white">
+    <div className="font-prompt bg-gradient-to-r  min-h-screen flex flex-col text-white bg-cover bg-center" 
+    style={{
+        backgroundImage: "url('/bg/หัวข้อ.png')"
+      }}>
+        
       <Navbar />
       <div className="px-10 pt-10 flex-grow">
         <h1 className="text-4xl font-bold mb-8 text-center">พรรคการเมืองทั้งหมด</h1>

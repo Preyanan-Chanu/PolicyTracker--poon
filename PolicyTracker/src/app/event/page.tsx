@@ -5,6 +5,7 @@ import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
 import ThaiMap from "../components/ThaiMapComponent";
 import { provinceNameMap, provinceToRegion} from "@/app/lib/provinceRegions";
+import { ArrowLeft } from "lucide-react";
 
 interface EventData {
   name: string;
@@ -114,18 +115,30 @@ export default function EventPage() {
 
   
   return (
-    <div className="min-h-screen bg-[#9795B5] font-['Prompt']">
+    <div className="min-h-screen  font-['Prompt'] bg-cover bg-center flex flex-col justify-between"
+    style={{
+        backgroundImage: "url('/bg/แผนที่.png')"
+      }}>
+    
       <Navbar />
 
     {/* ✅ ปุ่มย้อนกลับแสดงเฉพาะเมื่อเลือกจังหวัด */}
     {selectedProvince && (
-      <div className="w-full flex justify-start px-6 pt-6">
+      <div className="w-full flex justify-start px-6 pt-6  ">
         <button
-          className="text-white underline text-sm"
-          onClick={() => setSelectedProvince(null)}
-        >
-          ← ย้อนกลับ
-        </button>
+      onClick={() => setSelectedProvince(null)}
+      className="
+        inline-flex items-center gap-2
+        px-4 py-2
+        bg-gray-200 text-gray-800
+        font-medium rounded-lg shadow-sm
+        hover:bg-gray-300
+        focus:outline-none focus:ring-2 focus:ring-gray-400
+        transition
+      "
+    >
+      <ArrowLeft size={16} /> ย้อนกลับ
+    </button>
       </div>
     )}
       

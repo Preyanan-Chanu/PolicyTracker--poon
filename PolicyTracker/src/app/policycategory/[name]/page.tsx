@@ -103,7 +103,10 @@ const PolicyCategoryNamePage = () => {
   return (
     <div className="font-prompt">
       <Navbar />
-      <div className="px-10 py-6 bg-[#9795B5] min-h-screen">
+      <div className="px-10 py-6 bg-[#9795B5] min-h-screen bg-cover bg-center"
+      style={{
+        backgroundImage: "url('/bg/หัวข้อ.png')"
+      }}>
         <div className="flex justify-between items-center mt-6 mx-20 mb-6">
           <div className="flex items-center gap-4">
             <button
